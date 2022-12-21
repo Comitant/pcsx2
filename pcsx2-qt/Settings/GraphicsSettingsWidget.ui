@@ -1391,6 +1391,26 @@
               <string>Lottes CRT</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>Nearest AA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>4x RotatedGrid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5taps Quincunx SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>3x3 Jittered Stochastic SSAA</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item row="1" column="0">

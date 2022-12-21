@@ -65,6 +65,11 @@ const char* shaderName(PresentShader value)
 		case PresentShader::TRIANGULAR_FILTER: return "ps_filter_triangular";
 		case PresentShader::COMPLEX_FILTER:    return "ps_filter_complex";
 		case PresentShader::LOTTES_FILTER:     return "ps_filter_lottes";
+			// Fancy suff
+		case PresentShader::NEAREST_AA:           return "ps_nearest_aa";
+		case PresentShader::SUPERSAMPLE_4xRGSS:   return "ps_4x_rgss";
+		case PresentShader::SUPERSAMPLE_QUINCUNX: return "ps_quincunx";
+		case PresentShader::SUPERSAMPLE_JSSS:     return "ps_jittered_stochastic_supersampling";
 			// clang-format on
 		default:
 			ASSERT(0);
