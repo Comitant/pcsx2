@@ -1398,12 +1398,17 @@
             </item>
             <item>
              <property name="text">
-              <string>4x RotatedGrid SSAA</string>
+              <string>4x Rotated Grid SSAA</string>
              </property>
             </item>
             <item>
              <property name="text">
               <string>5taps Quincunx SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>3x3 Uniform Grid SSAA</string>
              </property>
             </item>
             <item>

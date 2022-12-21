@@ -13,8 +13,6 @@ vec4 sample_c(vec2 pos)
 #define GAMMA_POST(x) (x)
 #endif
 
-#ifdef ps_jittered_stochastic_supersampling
-
 #define JSSS_NUM 3
 #define JSSS_HALF (JSSS_NUM/2)
 #define JSSS_RCP2 (1.0/(JSSS_NUM*JSSS_NUM))
@@ -24,6 +22,7 @@ float nrand(vec2 n) {
   return fract(sin(dot(n, vec2(12.9898, 78.233)))* 43758.5453) - 0.5;
 }
 
+#ifdef ps_jittered_stochastic_supersampling
 void ps_jittered_stochastic_supersampling()
 {
 	vec3 color = vec3(0);
@@ -39,6 +38,22 @@ void ps_jittered_stochastic_supersampling()
 		
 		vec2 offset = vec2(i,j) + vec2(rx,ry);
 		vec3 tmpcol = sample_c(PSin_t + offset * dxy).rgb;
+		color += GAMMA_PRE(tmpcol);
+	}
+
+	SV_Target0 = vec4(GAMMA_POST(color*JSSS_RCP2), 1);
+}
+#endif
+
+#ifdef ps_3x3_uniform_grid_supersampling
+void ps_3x3_uniform_grid_supersampling()
+{
+	vec3 color = vec3(0);
+	vec2 dxy = vec2(dFdx(PSin_t.x), dFdy(PSin_t.y)) / JSSS_NUM;
+	
+	for(int j = -JSSS_HALF; j <= JSSS_HALF; j++)
+	for(int i = -JSSS_HALF; i <= JSSS_HALF; i++) {
+		vec3 tmpcol = sample_c(PSin_t +  vec2(i,j) * dxy).rgb;
 		color += GAMMA_PRE(tmpcol);
 	}
 

@@ -24,10 +24,7 @@ PS_OUTPUT ps_jittered_stochastic_supersampling(PS_INPUT input)
 	
 	float3 color = 0;
 	float2 dxy = float2(ddx(input.t.x), ddy(input.t.y)) / JSSS_NUM;
-	
-	float rx = nrand(input.t * u_time);
-	float ry = nrand(input.t * u_time + 0.5);
-	
+
 	for(int j = -JSSS_HALF; j <= JSSS_HALF; j++)
 	for(int i = -JSSS_HALF; i <= JSSS_HALF; i++) {
 		float rx = nrand(input.t * u_time + i + j);
@@ -35,6 +32,23 @@ PS_OUTPUT ps_jittered_stochastic_supersampling(PS_INPUT input)
 		
 		float2 offset = float2(i,j) + float2(rx,ry);
 		float3 sample = sample_c(input.t + offset * dxy).rgb;
+		color += GAMMA_PRE(sample);
+	}
+
+	output.c = float4(GAMMA_POST(color*JSSS_RCP2), 1);
+	return output;
+}
+
+PS_OUTPUT ps_3x3_uniform_grid_supersampling(PS_INPUT input)
+{
+	PS_OUTPUT output;
+	
+	float3 color = 0;
+	float2 dxy = float2(ddx(input.t.x), ddy(input.t.y)) / JSSS_NUM;
+	
+	for(int j = -JSSS_HALF; j <= JSSS_HALF; j++)
+	for(int i = -JSSS_HALF; i <= JSSS_HALF; i++) {
+		float3 sample = sample_c(input.t +  float2(i,j) * dxy).rgb;
 		color += GAMMA_PRE(sample);
 	}
 

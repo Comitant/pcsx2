@@ -69,6 +69,7 @@ const char* shaderName(PresentShader value)
 		case PresentShader::NEAREST_AA:           return "ps_nearest_aa";
 		case PresentShader::SUPERSAMPLE_4xRGSS:   return "ps_4x_rgss";
 		case PresentShader::SUPERSAMPLE_QUINCUNX: return "ps_quincunx";
+		case PresentShader::SUPERSAMPLE_3x3GRID:  return "ps_3x3_uniform_grid_supersampling";
 		case PresentShader::SUPERSAMPLE_JSSS:     return "ps_jittered_stochastic_supersampling";
 			// clang-format on
 		default:
