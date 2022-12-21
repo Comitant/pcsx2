@@ -1306,6 +1306,14 @@ bool GSDevice12::CompilePresentPipelines()
 		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present.fx.");
 		return false;
 	}
+	std::optional<std::string> shader_xtra = Host::ReadResourceFileToString("shaders/dx11/present_xtra.fx");
+	if (!shader_xtra)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present_xtra.fx.");
+		return false;
+	}
+
+	*shader += *shader_xtra;
 
 	ComPtr<ID3DBlob> m_convert_vs = GetUtilityVertexShader(*shader, "vs_main");
 	if (!m_convert_vs)

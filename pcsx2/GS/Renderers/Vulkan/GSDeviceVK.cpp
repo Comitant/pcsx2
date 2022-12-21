@@ -1547,11 +1547,20 @@ bool GSDeviceVK::CompilePresentPipelines()
 		return false;
 
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/present.glsl");
-	if (!shader)
+	if (!shader.has_value())
 	{
 		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/present.glsl.");
 		return false;
 	}
+
+	auto shader_xtra = Host::ReadResourceFileToString("shaders/vulkan/present_xtra.glsl");
+	if (!shader_xtra.has_value())
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/present_xtra.glsl.");
+		return false;
+	}
+
+	*shader += *shader_xtra;
 
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)

@@ -318,12 +318,21 @@ bool GSDeviceOGL::Create()
 		GL_PUSH("GSDeviceOGL::Present");
 
 		// these all share the same vertex shader
-		const auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
+		auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
 		if (!shader.has_value())
 		{
 			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/present.glsl.");
 			return false;
 		}
+
+		auto shader_xtra = Host::ReadResourceFileToString("shaders/opengl/present_xtra.glsl");
+		if (!shader_xtra.has_value())
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/present_xtra.glsl.");
+			return false;
+		}
+
+		*shader += *shader_xtra;
 
 		std::string present_vs(GetShaderSource("vs_main", GL_VERTEX_SHADER, m_shader_common_header, *shader, {}));
 

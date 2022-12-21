@@ -161,8 +161,11 @@ bool GSDevice11::Create()
 	if (!shader.has_value())
 		return false;
 
-	std::optional<std::string> shader_xtra = Host::ReadResourceFileToString("shaders/dx11/present_xtra.fx");
-	if(shader_xtra.has_value()) *shader += *shader_xtra;
+	auto shader_xtra = Host::ReadResourceFileToString("shaders/dx11/present_xtra.fx");
+	if(!shader_xtra.has_value())
+		return false;
+
+	*shader += *shader_xtra;
 
 	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_present.vs.put(), m_present.il.put(),
 			il_convert, std::size(il_convert), *shader, sm_model.GetPtr(), "vs_main"))
