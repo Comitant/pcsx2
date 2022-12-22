@@ -35,11 +35,15 @@
 #include <thread>
 #include <mutex>
 
-static constexpr std::array<PresentShader, 6+5> s_tv_shader_indices = {
+static constexpr std::array<PresentShader, 6+11> s_tv_shader_indices = {
 	PresentShader::COPY, PresentShader::SCANLINE,
 	PresentShader::DIAGONAL_FILTER, PresentShader::TRIANGULAR_FILTER,
 	PresentShader::COMPLEX_FILTER, PresentShader::LOTTES_FILTER,
-	PresentShader::NEAREST_AA, PresentShader::SUPERSAMPLE_4xRGSS, PresentShader::SUPERSAMPLE_QUINCUNX, PresentShader::SUPERSAMPLE_3x3GRID, PresentShader::SUPERSAMPLE_JSSS};
+	PresentShader::NEAREST_AA, PresentShader::SUPERSAMPLE_4xRGSS, PresentShader::SUPERSAMPLE_QUINCUNX,
+	PresentShader::SUPERSAMPLE_3x3GRID, PresentShader::SUPERSAMPLE_3x3JSSS,
+	PresentShader::SUPERSAMPLE_5x5GRID, PresentShader::SUPERSAMPLE_5x5JSSS,
+	PresentShader::SUPERSAMPLE_7x7GRID, PresentShader::SUPERSAMPLE_7x7JSSS,
+	PresentShader::SUPERSAMPLE_9x9GRID, PresentShader::SUPERSAMPLE_9x9JSSS};
 
 static std::deque<std::thread> s_screenshot_threads;
 static std::mutex s_screenshot_threads_mutex;

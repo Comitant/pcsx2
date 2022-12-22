@@ -1561,6 +1561,7 @@ bool GSDeviceVK::CompilePresentPipelines()
 	}
 
 	*shader += *shader_xtra;
+	char *ps_number = &(*shader)[(*shader).find("#define JSSS_NUM 3")+17];
 
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)
@@ -1587,6 +1588,9 @@ bool GSDeviceVK::CompilePresentPipelines()
 		i = static_cast<PresentShader>(static_cast<int>(i) + 1))
 	{
 		const int index = static_cast<int>(i);
+
+		int number = (index-static_cast<int>(PresentShader::SUPERSAMPLE_3x3GRID))/2;
+		*ps_number = number < 0 ? '3' : '0' + number*2 + 3;
 
 		VkShaderModule ps = GetUtilityFragmentShader(*shader, shaderName(i));
 		if (ps == VK_NULL_HANDLE)

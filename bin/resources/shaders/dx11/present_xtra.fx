@@ -39,7 +39,7 @@ PS_OUTPUT ps_jittered_stochastic_supersampling(PS_INPUT input)
 	return output;
 }
 
-PS_OUTPUT ps_3x3_uniform_grid_supersampling(PS_INPUT input)
+PS_OUTPUT ps_nxn_uniform_grid_supersampling(PS_INPUT input)
 {
 	PS_OUTPUT output;
 	

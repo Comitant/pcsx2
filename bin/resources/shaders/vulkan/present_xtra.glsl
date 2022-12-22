@@ -40,8 +40,8 @@ void ps_jittered_stochastic_supersampling()
 }
 #endif
 
-#ifdef ps_3x3_uniform_grid_supersampling
-void ps_3x3_uniform_grid_supersampling()
+#ifdef ps_nxn_uniform_grid_supersampling
+void ps_nxn_uniform_grid_supersampling()
 {
 	vec3 color = vec3(0);
 	vec2 dxy = vec2(dFdx(v_tex.x), dFdy(v_tex.y)) / JSSS_NUM;

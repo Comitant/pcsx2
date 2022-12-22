@@ -69,8 +69,14 @@ const char* shaderName(PresentShader value)
 		case PresentShader::NEAREST_AA:           return "ps_nearest_aa";
 		case PresentShader::SUPERSAMPLE_4xRGSS:   return "ps_4x_rgss";
 		case PresentShader::SUPERSAMPLE_QUINCUNX: return "ps_quincunx";
-		case PresentShader::SUPERSAMPLE_3x3GRID:  return "ps_3x3_uniform_grid_supersampling";
-		case PresentShader::SUPERSAMPLE_JSSS:     return "ps_jittered_stochastic_supersampling";
+		case PresentShader::SUPERSAMPLE_3x3GRID:  return "ps_nxn_uniform_grid_supersampling";
+		case PresentShader::SUPERSAMPLE_3x3JSSS:  return "ps_jittered_stochastic_supersampling";
+		case PresentShader::SUPERSAMPLE_5x5GRID:  return "ps_nxn_uniform_grid_supersampling";
+		case PresentShader::SUPERSAMPLE_5x5JSSS:  return "ps_jittered_stochastic_supersampling";
+		case PresentShader::SUPERSAMPLE_7x7GRID:  return "ps_nxn_uniform_grid_supersampling";
+		case PresentShader::SUPERSAMPLE_7x7JSSS:  return "ps_jittered_stochastic_supersampling";
+		case PresentShader::SUPERSAMPLE_9x9GRID:  return "ps_nxn_uniform_grid_supersampling";
+		case PresentShader::SUPERSAMPLE_9x9JSSS:  return "ps_jittered_stochastic_supersampling";
 			// clang-format on
 		default:
 			ASSERT(0);
