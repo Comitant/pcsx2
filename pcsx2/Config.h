@@ -800,6 +800,16 @@ struct Pcsx2Config
 
 	struct SPU2Options
 	{
+		enum class InterpolationMode
+		{
+			Nearest,
+			Linear,
+			Cubic,
+			Hermite,
+			CatmullRom,
+			Gaussian
+		};
+
 		enum class SynchronizationMode
 		{
 			TimeStretch,
@@ -840,6 +850,7 @@ struct Pcsx2Config
 			VisualDebugEnabled : 1;
 		BITFIELD_END
 
+		InterpolationMode Interpolation = InterpolationMode::Gaussian;
 		SynchronizationMode SynchMode = SynchronizationMode::TimeStretch;
 
 		s32 FinalVolume = 100;
@@ -864,6 +875,7 @@ struct Pcsx2Config
 		{
 			return OpEqu(bitset) &&
 
+				OpEqu(Interpolation) &&
 				OpEqu(SynchMode) &&
 
 				OpEqu(FinalVolume) &&

@@ -846,6 +846,7 @@ void Pcsx2Config::SPU2Options::LoadSave(SettingsWrapper& wrap)
 	{
 		SettingsWrapSection("SPU2/Mixing");
 
+		Interpolation = static_cast<InterpolationMode>(wrap.EntryBitfield(CURRENT_SETTINGS_SECTION, "Interpolation", static_cast<int>(Interpolation), static_cast<int>(Interpolation)));
 		SettingsWrapEntry(FinalVolume);
 	}
 
