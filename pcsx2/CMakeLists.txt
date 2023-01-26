@@ -150,6 +150,7 @@ set(pcsx2Sources
 	Vif_Codes.cpp
 	Vif_Transfer.cpp
 	Vif_Unpack.cpp
+	VirtualMemory.cpp
 	vtlb.cpp
 	VU0.cpp
 	VUmicro.cpp
@@ -201,7 +202,6 @@ set(pcsx2Headers
 	PerformanceMetrics.h
 	PrecompiledHeader.h
 	R3000A.h
-	R5900Exceptions.h
 	R5900.h
 	R5900OpcodeTables.h
 	SaveState.h
@@ -217,6 +217,7 @@ set(pcsx2Headers
 	Vif_Dma.h
 	Vif.h
 	Vif_Unpack.h
+	VirtualMemory.h
 	vtlb.h
 	VUflags.h
 	VUmicro.h
