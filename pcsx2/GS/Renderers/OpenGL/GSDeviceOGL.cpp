@@ -325,17 +325,30 @@ bool GSDeviceOGL::Create()
 		GL_PUSH("GSDeviceOGL::Present");
 
 		// these all share the same vertex shader
-		const auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
+		auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
 		if (!shader.has_value())
 		{
 			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/present.glsl.");
 			return false;
 		}
 
+		auto shader_xtra = Host::ReadResourceFileToString("shaders/opengl/present_xtra.glsl");
+		if (!shader_xtra.has_value())
+		{
+			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/present_xtra.glsl.");
+			return false;
+		}
+
+		*shader += *shader_xtra;
+		char *ps_number = &(*shader)[(*shader).find("#define JSSS_NUM 3")+17];
+
 		std::string present_vs(GetShaderSource("vs_main", GL_VERTEX_SHADER, m_shader_common_header, *shader, {}));
 
 		for (size_t i = 0; i < std::size(m_present); i++)
 		{
+			int number = (i-static_cast<int>(PresentShader::SUPERSAMPLE_3x3GRID))/2;
+			*ps_number = number < 0 ? '3' : '0' + number*2 + 3;
+
 			const char* name = shaderName(static_cast<PresentShader>(i));
 			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, m_shader_common_header, *shader, {}));
 			if (!m_shader_cache.GetProgram(&m_present[i], present_vs, {}, ps))

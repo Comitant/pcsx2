@@ -1262,6 +1262,15 @@ bool GSDevice12::CompilePresentPipelines()
 		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present.fx.");
 		return false;
 	}
+	std::optional<std::string> shader_xtra = Host::ReadResourceFileToString("shaders/dx11/present_xtra.fx");
+	if (!shader_xtra)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present_xtra.fx.");
+		return false;
+	}
+
+	*shader += *shader_xtra;
+	char *ps_number = &(*shader)[(*shader).find("#define JSSS_NUM 3")+17];
 
 	ComPtr<ID3DBlob> m_convert_vs = GetUtilityVertexShader(*shader, "vs_main");
 	if (!m_convert_vs)
@@ -1281,6 +1290,9 @@ bool GSDevice12::CompilePresentPipelines()
 		 i = static_cast<PresentShader>(static_cast<int>(i) + 1))
 	{
 		const int index = static_cast<int>(i);
+
+		int number = (index-static_cast<int>(PresentShader::SUPERSAMPLE_3x3GRID))/2;
+		*ps_number = number < 0 ? '3' : '0' + number*2 + 3;
 
 		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
 		if (!ps)

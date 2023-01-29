@@ -1417,6 +1417,61 @@
               <string>Lottes CRT</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>Nearest AA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>4x Rotated Grid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5taps Quincunx SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>3x3 Uniform Grid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>3x3 Jittered Stochastic SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5x5 Uniform Grid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5x5 Jittered Stochastic SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>7x7 Uniform Grid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>7x7 Jittered Stochastic SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>9x9 Uniform Grid SSAA</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>9x9 Jittered Stochastic SSAA</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item row="1" column="0">

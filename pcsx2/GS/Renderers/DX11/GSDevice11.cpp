@@ -160,6 +160,14 @@ bool GSDevice11::Create()
 	shader = Host::ReadResourceFileToString("shaders/dx11/present.fx");
 	if (!shader.has_value())
 		return false;
+
+	auto shader_xtra = Host::ReadResourceFileToString("shaders/dx11/present_xtra.fx");
+	if(!shader_xtra.has_value())
+		return false;
+
+	*shader += *shader_xtra;
+	char *ps_number = &(*shader)[(*shader).find("#define JSSS_NUM 3")+17];
+
 	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_present.vs.put(), m_present.il.put(),
 			il_convert, std::size(il_convert), *shader, sm_model.GetPtr(), "vs_main"))
 	{
@@ -168,6 +176,9 @@ bool GSDevice11::Create()
 
 	for (size_t i = 0; i < std::size(m_present.ps); i++)
 	{
+		int number = (i-static_cast<int>(PresentShader::SUPERSAMPLE_3x3GRID))/2;
+		*ps_number = number < 0 ? '3' : '0' + number*2 + 3;
+
 		m_present.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm_model.GetPtr(), shaderName(static_cast<PresentShader>(i)));
 		if (!m_present.ps[i])
 			return false;
