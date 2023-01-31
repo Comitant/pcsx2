@@ -1678,8 +1678,8 @@ SCED-50041:
   name: "Tekken Tag Tournament [Demo]"
   region: "PAL-E"
   gsHWFixes:
-    alignSprite: 1
-    texturePreloading: 1
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCED-50065:
   name: "Official PlayStation 2 Magazine Demo 1"
   region: "PAL-M5"
@@ -2786,8 +2786,8 @@ SCES-50001:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    alignSprite: 1
-    texturePreloading: 1
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCES-50002:
   name: "FantaVision"
   region: "PAL-M5"
@@ -3101,8 +3101,8 @@ SCES-50878:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    alignSprite: 1
-    texturePreloading: 1 # Performs much better with partial preload.
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCES-50885:
   name: "Ape Escape 2"
   region: "PAL-E"
@@ -5038,6 +5038,12 @@ SCKA-20044:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes chromatic effect.
+SCKA-20045:
+  name: "Tekken 4"
+  region: "NTSC-K"
+  gsHWFixes:
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCKA-20047:
   name: "Armored Core Nine Breaker"
   region: "NTSC-K"
@@ -6732,7 +6738,7 @@ SCPS-55017:
   compat: 3
   gsHWFixes:
     alignSprite: 1
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCPS-55018:
   name: "Kingdom of Scribbling"
   region: "NTSC-J"
@@ -6920,7 +6926,8 @@ SCPS-56002:
   region: "NTSC-K"
   compat: 5
   gsHWFixes:
-    alignSprite: 1
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCPS-56003:
   name: "Jak and Daxter - The Precursor Legacy"
   region: "NTSC-K"
@@ -6940,7 +6947,7 @@ SCPS-56006:
   compat: 5
   gsHWFixes:
     alignSprite: 1
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SCPS-56008:
   name: "Fatal Frame"
   region: "NTSC-K"
@@ -12041,40 +12048,50 @@ SLES-51192:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51193:
   name: "Harry Potter et la Chambre des Secrets"
   region: "PAL-F"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51194:
   name: "Harry Potter und die Kammer des Schreckens"
   region: "PAL-G"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51195:
   name: "Harry Potter y la Cámara Secreta"
   region: "PAL-S"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51196:
   name: "Harry Potter e La Camera dei Secreti"
   region: "PAL-I"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51197:
   name: "FIFA 2003"
   region: "PAL-M7"
@@ -12126,48 +12143,60 @@ SLES-51214:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51215:
   name: "Harry Potter og Mysteriekammeret"
   region: "PAL-NO"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51216:
   name: "Harry Potter ja Salaisuuksien Kammio"
   region: "PAL-FI"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51217:
   name: "Harry Potter och Hemligheternas Kammare"
   region: "PAL-SW"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51218:
   name: "Harry Potter en de Geheime Kamer"
   region: "PAL-NL"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51219:
   name: "Harry Potter ea Camara dos Segredos"
   region: "PAL-P"
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
+    texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
 SLES-51220:
   name: "TY the Tasmanian Tiger"
   region: "PAL-M5"
@@ -15726,6 +15755,8 @@ SLES-52831:
 SLES-52832:
   name: "Mega Man X - Command Mission"
   region: "PAL-M3"
+  clampModes:
+    vu1ClampMode: 3 # Fixes the trophies.
 SLES-52834:
   name: "Sega Superstars Eyetoy Bundle"
   region: "PAL-M4"
@@ -17046,6 +17077,9 @@ SLES-53402:
   name: "Taxi Rider"
   region: "PAL-E"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # Fixes road markings.
+    trilinearFiltering: 1 # Smooths the texture transitions.
   roundModes:
     eeRoundMode: 2 # Positive rounding fixes distant white models.
     vu1RoundMode: 2 # Positive rounding fixes close white models.
@@ -18667,6 +18701,7 @@ SLES-53974:
   compat: 5
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
@@ -25773,7 +25808,8 @@ SLPM-62241:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-62244:
   name: "Choro Q HG 3"
@@ -26455,6 +26491,9 @@ SLPM-62482:
 SLPM-62483:
   name: "Simple 2000 Series Vol. 48 - The Taxi - Untenshu ha Kimi da"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Fixes road markings.
+    trilinearFiltering: 1 # Smooths the texture transitions.
   roundModes:
     eeRoundMode: 2 # Positive rounding fixes distant white models.
     vu1RoundMode: 2 # Positive rounding fixes close white models.
@@ -26481,6 +26520,7 @@ SLPM-62490:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
@@ -26559,7 +26599,8 @@ SLPM-62513:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-62514:
   name: "Sim People [EA Best Hits]"
@@ -27397,7 +27438,8 @@ SLPM-64528:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-64532:
   name: "Digital Holmes"
@@ -29589,6 +29631,8 @@ SLPM-65642:
 SLPM-65643:
   name: "RockMan X - Command Mission"
   region: "NTSC-J"
+  clampModes:
+    vu1ClampMode: 3 # Fixes the trophies.
 SLPM-65644:
   name: "Guilty Gear Isuka"
   region: "NTSC-J"
@@ -30419,6 +30463,7 @@ SLPM-65888:
   compat: 5
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
@@ -32669,6 +32714,7 @@ SLPM-66481:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
@@ -34750,7 +34796,8 @@ SLPM-68005:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-68018:
   name: "Virtua Fighter - 10th Anniversary Edition"
@@ -35220,7 +35267,8 @@ SLPS-20015:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    alignSprite: 1
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLPS-20016:
   name: "Dream Audition"
   region: "NTSC-J"
@@ -35744,7 +35792,8 @@ SLPS-20234:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPS-20239:
   name: "Jissen Pachi-Slot Hisshouhou! Moujuuou S [Limited Edition]"
@@ -36865,7 +36914,7 @@ SLPS-25100:
   compat: 5
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLPS-25102:
   name: "Project Arms"
   region: "NTSC-J"
@@ -39773,6 +39822,9 @@ SLPS-25914:
 SLPS-25915:
   name: "King of Fighters 2002, The - Unlimited Match"
   region: "NTSC-J"
+SLPS-25916:
+  name: "Shinjuku no Ookami"
+  region: "NTSC-J"
 SLPS-25917:
   name: "Sacred Blaze"
   region: "NTSC-J"
@@ -39945,6 +39997,12 @@ SLPS-29005:
     autoFlush: 1 # Fixes shadows in cutscenes.
     halfPixelOffset: 2 # Removes puppet lines shadows.
     roundSprite: 2 # Fixes font artifacts.
+SLPS-71501:
+  name: "Tekken Tag Tournament [Mega Hits]"
+  region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLPS-72501:
   name: "Final Fantasy X [Mega Hits]"
   region: "NTSC-J"
@@ -39982,6 +40040,7 @@ SLPS-73104:
   region: "NTSC-J"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLPS-73105:
   name: "Kinnikuman Generations [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -40060,7 +40119,7 @@ SLPS-73209:
   region: "NTSC-J"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLPS-73210:
   name: "Katamari Damacy [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -40544,6 +40603,7 @@ SLUS-20001:
   compat: 5
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLUS-20002:
   name: "Ridge Racer V"
   region: "NTSC-U"
@@ -41849,7 +41909,7 @@ SLUS-20328:
   compat: 5
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLUS-20329:
   name: "Pro Race Driver"
   region: "NTSC-U"
@@ -43028,7 +43088,8 @@ SLUS-20576:
   gameFixes:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
-    mipmap: 1
+    mipmap: 2 # Fixes blurry textures.
+    trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLUS-20577:
   name: "Drome Racers"
@@ -44585,6 +44646,8 @@ SLUS-20903:
   name: "Mega Man X - Command Mission"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vu1ClampMode: 3 # Fixes the trophies.
 SLUS-20904:
   name: "SpongeBob SquarePants - The Movie"
   region: "NTSC-U"
@@ -46173,6 +46236,7 @@ SLUS-21207:
   compat: 5
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
@@ -49898,7 +49962,7 @@ SLUS-28012:
   region: "NTSC-U"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLUS-28013:
   name: "Dual Hearts [Trade Demo]"
   region: "NTSC-U"
@@ -50147,7 +50211,7 @@ SLUS-29034:
   region: "NTSC-U"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
-    texturePreloading: 1 # Performs much better with partial preload.
+    texturePreloading: 0 # Performs much better with no preloading.
 SLUS-29035:
   name: "Eidos Demo Disc"
   region: "NTSC-U"
@@ -50527,6 +50591,7 @@ SLUS-29157:
   region: "NTSC-U"
   gsHWFixes:
     autoFlush: 1 # Fixes missing bloom from surfaces like windows.
+    textureInsideRT: 1 # Fixes corruption.
     # halfPixelOffset: 1 # Aligns shadows properly, but causes grid lines to appear in sea travel.
     halfPixelOffset: 2 # Sharpens world in far distances, aligns some bloom better.
     roundSprite: 1 # Fixes font artifacts.
