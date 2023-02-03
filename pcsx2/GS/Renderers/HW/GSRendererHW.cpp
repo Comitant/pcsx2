@@ -204,14 +204,27 @@ void GSRendererHW::VSync(u32 field, bool registers_written)
 	{
 		m_tc->RemoveAll();
 		m_reset = false;
+		m_force_preload = true;
+	}
+	else
+	{
+		m_force_preload = false;
+		std::vector<GSState::GSUploadQueue>::iterator iter;
+		for (iter = m_draw_transfers.begin(); iter != m_draw_transfers.end(); ) {
+			if ((s_n - iter->draw) > 5)
+				iter = m_draw_transfers.erase(iter);
+			else
+				iter++;
+		}
 	}
 
 	if (GSConfig.LoadTextureReplacements)
 		GSTextureReplacements::ProcessAsyncLoadedTextures();
 
+	m_tc->IncAge();
+
 	GSRenderer::VSync(field, registers_written);
 
-	m_tc->IncAge();
 
 	if (m_tc->GetHashCacheMemoryUsage() > 1024 * 1024 * 1024)
 	{
@@ -1362,7 +1375,7 @@ void GSRendererHW::Draw()
 	}
 
 	// SW CLUT Render enable.
-	bool preload = GSConfig.PreloadFrameWithGSData;
+	bool preload = GSConfig.PreloadFrameWithGSData | m_force_preload;
 	if (GSConfig.UserHacks_CPUCLUTRender > 0 || GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
 	{
 		const CLUTDrawTestResult result = (GSConfig.UserHacks_CPUCLUTRender == 2) ? PossibleCLUTDrawAggressive() : PossibleCLUTDraw();
@@ -1383,7 +1396,7 @@ void GSRendererHW::Draw()
 				!IsOpaque()) // Blending enabled
 			{
 				GL_INS("Forcing preload due to partial/blended CLUT draw");
-				preload = true;
+				preload = m_force_preload = true;
 			}
 		}
 	}
@@ -1658,16 +1671,31 @@ void GSRendererHW::Draw()
 
 	if (!GSConfig.UserHacks_DisableSafeFeatures)
 	{
-		if (IsConstantDirectWriteMemClear())
+		if (IsConstantDirectWriteMemClear(true))
 		{
 			// Likely doing a huge single page width clear, which never goes well. (Superman)
 			// Burnout 3 does a 32x1024 double width clear on its reflection targets.
 			const bool clear_height_valid = (m_r.w >= 1024);
 			if (clear_height_valid && context->FRAME.FBW == 1)
 			{
+				u32 width = ceil(static_cast<float>(m_r.w) / GetFramebufferHeight()) * 64;
+				// Framebuffer is likely to be read as 16bit later, so we will need to double the width if the write is 32bit.
+				const bool double_width = GSLocalMemory::m_psm[context->FRAME.PSM].bpp == 32 && GetFramebufferBitDepth() == 16;
+				m_r.x = 0;
+				m_r.y = 0;
 				m_r.w = GetFramebufferHeight();
-				m_r.z = GetFramebufferWidth();
+				m_r.z = std::max((width * (double_width ? 2 : 1)), static_cast<u32>(GetFramebufferWidth()));
 				context->FRAME.FBW = (m_r.z + 63) / 64;
+				m_context->scissor.in.z = context->FRAME.FBW * 64;
+
+				GSVertex* s = &m_vertex.buff[0];
+				s[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + 0);
+				s[1].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + 16384);
+				s[0].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + 0);
+				s[1].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + 16384);
+
+				m_vertex.head = m_vertex.tail = m_vertex.next = 2;
+				m_index.tail = 2;
 			}
 
 			// Superman does a clear to white, not black, on its depth buffer.
@@ -1675,7 +1703,8 @@ void GSRendererHW::Draw()
 			// on. So, instead, let the draw go through with the expanded rectangle, and copy color->depth.
 			const bool is_zero_clear = (((GSLocalMemory::m_psm[m_context->FRAME.PSM].fmt == 0) ?
 												m_vertex.buff[1].RGBAQ.U32[0] :
-                                                (m_vertex.buff[1].RGBAQ.U32[0] & ~0xFF000000)) == 0);
+												(m_vertex.buff[1].RGBAQ.U32[0] & ~0xFF000000)) == 0) && m_context->FRAME.FBMSK == 0 && IsBlendedOrOpaque();
+			
 			if (is_zero_clear && OI_GsMemClear() && clear_height_valid)
 			{
 				m_tc->InvalidateVideoMem(context->offset.fb, m_r, false, true);
@@ -1704,7 +1733,7 @@ void GSRendererHW::Draw()
 
 	GSTextureCache::Target* rt = nullptr;
 	if (!no_rt)
-		rt = m_tc->LookupTarget(TEX0, t_size, GSTextureCache::RenderTarget, true, fm, false, 0, 0, preload);
+		rt = m_tc->LookupTarget(TEX0, t_size, GSTextureCache::RenderTarget, true, fm, false, unscaled_size.x, unscaled_size.y, preload);
 
 	TEX0.TBP0 = context->ZBUF.Block();
 	TEX0.TBW = context->FRAME.FBW;
@@ -1803,7 +1832,7 @@ void GSRendererHW::Draw()
 
 	if (!GSConfig.UserHacks_DisableSafeFeatures)
 	{
-		if (IsConstantDirectWriteMemClear())
+		if (IsConstantDirectWriteMemClear(false) && IsBlendedOrOpaque())
 			OI_DoubleHalfClear(rt, ds);
 	}
 
@@ -3997,6 +4026,14 @@ GSRendererHW::CLUTDrawTestResult GSRendererHW::PossibleCLUTDraw()
 		// If we have GPU CLUT enabled, don't do a CPU draw when it would result in a download.
 		if (GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
 		{
+			std::vector<GSState::GSUploadQueue>::iterator iter;
+			for (iter = m_draw_transfers.begin(); iter != m_draw_transfers.end(); ) {
+				if (iter->blit.DBP == m_context->TEX0.TBP0 && GSUtil::HasSharedBits(iter->blit.DPSM, m_context->TEX0.PSM))
+					return CLUTDrawTestResult::CLUTDrawOnCPU;
+
+				iter++;
+			}
+
 			GSTextureCache::Target* tgt = m_tc->GetExactTarget(m_context->TEX0.TBP0, m_context->TEX0.TBW, m_context->TEX0.PSM);
 			if (tgt)
 			{
@@ -4014,6 +4051,16 @@ GSRendererHW::CLUTDrawTestResult GSRendererHW::PossibleCLUTDraw()
 					GL_INS("GPU clut is enabled and this draw would readback, leaving on GPU");
 					return CLUTDrawTestResult::CLUTDrawOnGPU;
 				}
+			}
+		}
+		else
+		{
+			std::vector<GSState::GSUploadQueue>::iterator iter;
+			for (iter = m_draw_transfers.begin(); iter != m_draw_transfers.end(); ) {
+				if (iter->blit.DBP == m_context->TEX0.TBP0 && GSUtil::HasSharedBits(iter->blit.DPSM, m_context->TEX0.PSM))
+					return CLUTDrawTestResult::CLUTDrawOnCPU;
+
+				iter++;
 			}
 		}
 
@@ -4212,7 +4259,6 @@ bool GSRendererHW::OI_GsMemClear()
 		const GSOffset& off = m_context->offset.fb;
 		GSVector4i r = GSVector4i(m_vt.m_min.p.xyxy(m_vt.m_max.p)).rintersect(GSVector4i(m_context->scissor.in));
 
-		
 		if (r.width() == 32 && ZisFrame)
 			r.z += 32;
 		// Limit the hack to a single full buffer clear. Some games might use severals column to clear a screen
@@ -4229,7 +4275,6 @@ bool GSRendererHW::OI_GsMemClear()
 			vert_color &= ~0xFF000000;
 
 		const u32 color = (format == 0) ? vert_color : (vert_color & ~0xFF000000);
-
 		// FIXME: loop can likely be optimized with AVX/SSE. Pixels aren't
 		// linear but the value will be done for all pixels of a block.
 		// FIXME: maybe we could limit the write to the top and bottom row page.
@@ -4276,6 +4321,7 @@ bool GSRendererHW::OI_GsMemClear()
 			}
 #endif
 		}
+
 		return true;
 	}
 	return false;
@@ -4339,17 +4385,20 @@ bool GSRendererHW::OI_BlitFMV(GSTextureCache::Target* _rt, GSTextureCache::Sourc
 	// Nothing to see keep going
 	return true;
 }
+bool GSRendererHW::IsBlendedOrOpaque()
+{
+	return (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsCdOutput());
+}
 
-bool GSRendererHW::IsConstantDirectWriteMemClear()
+bool GSRendererHW::IsConstantDirectWriteMemClear(bool include_zero)
 {
 	// Constant Direct Write without texture/test/blending (aka a GS mem clear)
 	if ((m_vt.m_primclass == GS_SPRITE_CLASS) && !PRIM->TME // Direct write
-		&& (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsCdOutput()) // No transparency
-		&& (m_context->FRAME.FBMSK == 0) // no color mask
+		&& (m_context->FRAME.FBMSK == 0 || (include_zero && m_vt.m_max.c.eq(GSVector4i::zero()))) // no color mask
 		&& !(m_env.SCANMSK.MSK & 2)
 		&& !m_context->TEST.ATE // no alpha test
 		&& (!m_context->TEST.ZTE || m_context->TEST.ZTST == ZTST_ALWAYS) // no depth test
-		&& (m_vt.m_eq.rgba == 0xFFFF) // constant color write
+		&& (m_vt.m_eq.rgba == 0xFFFF || m_vertex.next == 2) // constant color write
 		&& m_r.x == 0 && m_r.y == 0) // Likely full buffer write
 		return true;
 

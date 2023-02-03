@@ -56,10 +56,12 @@ GSState::GSState()
 	memset(&m_v, 0, sizeof(m_v));
 	memset(&m_vertex, 0, sizeof(m_vertex));
 	memset(&m_index, 0, sizeof(m_index));
-
+	memset(m_mem.m_vm8, 0, m_mem.m_vmsize);
 	m_v.RGBAQ.Q = 1.0f;
 
 	GrowVertexBuffer();
+
+	m_draw_transfers.clear();
 
 	m_sssize = 0;
 
@@ -140,8 +142,6 @@ void GSState::Reset(bool hardware_reset)
 	Flush(GSFlushReason::RESET);
 
 	// FIXME: bios logo not shown cut in half after reset, missing graphics in GoW after first FMV
-	if (hardware_reset)
-		memset(m_mem.m_vm8, 0, m_mem.m_vmsize);
 	memset(&m_path, 0, sizeof(m_path));
 	memset(&m_v, 0, sizeof(m_v));
 
@@ -561,6 +561,16 @@ int GSState::GetFramebufferHeight()
 		GL_PERF("Massive framebuffer height detected! (height:%d)", frame_memory_height);
 
 	return frame_memory_height;
+}
+
+int GSState::GetFramebufferBitDepth()
+{
+	if (IsEnabled(0))
+		return GSLocalMemory::m_psm[m_regs->DISP[0].DISPFB.PSM].bpp;
+	else if (IsEnabled(1))
+		return GSLocalMemory::m_psm[m_regs->DISP[1].DISPFB.PSM].bpp;
+
+	return 32;
 }
 
 int GSState::GetFramebufferWidth()
@@ -1984,8 +1994,6 @@ void GSState::Write(const u8* mem, int len)
 	if (!m_tr.Update(w, h, psm.trbpp, len))
 		return;
 
-	
-
 	GIFRegTEX0& prev_tex0 = m_prev_env.CTXT[m_prev_env.PRIM.CTXT].TEX0;
 
 	const u32 write_start_bp = m_mem.m_psm[blit.DPSM].info.bn(m_env.TRXPOS.DSAX, m_env.TRXPOS.DSAY, blit.DBP, blit.DBW); // (m_mem.*psm.pa)(static_cast<int>(m_env.TRXPOS.DSAX), static_cast<int>(m_env.TRXPOS.DSAY), blit.DBP, blit.DBW) >> 6;
@@ -1999,6 +2007,16 @@ void GSState::Write(const u8* mem, int len)
 	}
 	// Invalid the CLUT if it crosses paths.
 	m_mem.m_clut.InvalidateRange(write_start_bp, write_end_bp);
+
+	if (GSConfig.PreloadFrameWithGSData)
+	{
+		// Store the transfer for preloading new RT's.
+		if (m_draw_transfers.size() == 0 || (m_draw_transfers.size() > 0 && blit.DBP != m_draw_transfers.back().blit.DBP))
+		{
+			GSUploadQueue new_transfer = { blit, s_n };
+			m_draw_transfers.push_back(new_transfer);
+		}
+	}
 
 	GL_CACHE("Write! ...  => 0x%x W:%d F:%s (DIR %d%d), dPos(%d %d) size(%d %d)",
 			 blit.DBP, blit.DBW, psm_str(blit.DPSM),
@@ -2145,6 +2163,16 @@ void GSState::Move()
 	if (m_index.tail > 0 && m_prev_env.PRIM.TME && write_end_bp >= prev_tex0.TBP0 && write_start_bp <= tex_end_bp)
 	{
 		Flush(GSFlushReason::LOCALTOLOCALMOVE);
+	}
+
+	if (GSConfig.PreloadFrameWithGSData)
+	{
+		// Store the transfer for preloading new RT's.
+		if (m_draw_transfers.size() == 0 || (m_draw_transfers.size() > 0 && dbp != m_draw_transfers.back().blit.DBP))
+		{
+			GSUploadQueue new_transfer = { m_env.BITBLTBUF, s_n };
+			m_draw_transfers.push_back(new_transfer);
+		}
 	}
 	// Invalid the CLUT if it crosses paths.
 	m_mem.m_clut.InvalidateRange(write_start_bp, write_end_bp);
@@ -3203,28 +3231,31 @@ __forceinline void GSState::HandleAutoFlush()
 	}
 }
 
-template <u32 prim, bool auto_flush, bool index_swap>
-__forceinline void GSState::VertexKick(u32 skip)
+static constexpr size_t NumIndicesForPrim(u32 prim)
 {
-	size_t n = 0;
-
 	switch (prim)
 	{
 		case GS_POINTLIST:
 		case GS_INVALID:
-			n = 1;
-			break;
+			return 1;
 		case GS_LINELIST:
 		case GS_SPRITE:
 		case GS_LINESTRIP:
-			n = 2;
-			break;
+			return 2;
 		case GS_TRIANGLELIST:
 		case GS_TRIANGLESTRIP:
 		case GS_TRIANGLEFAN:
-			n = 3;
-			break;
+			return 3;
+		default:
+			return 0;
 	}
+}
+
+template <u32 prim, bool auto_flush, bool index_swap>
+__forceinline void GSState::VertexKick(u32 skip)
+{
+	constexpr size_t n = NumIndicesForPrim(prim);
+	static_assert(n > 0);
 
 	ASSERT(m_vertex.tail < m_vertex.maxcount + 3);
 
@@ -3437,39 +3468,52 @@ __forceinline void GSState::VertexKick(u32 skip)
 			break;
 		case GS_INVALID:
 			m_vertex.tail = head;
-			break;
+			return;
 		default:
 			__assume(0);
 	}
 
-	
-	
-	GSVector4i draw_coord;
-	const GSVector2i offset = GSVector2i(m_context->XYOFFSET.OFX, m_context->XYOFFSET.OFY);
-
-	for (size_t i = 0; i < n; i++)
 	{
-		const GSVertex* v = &m_vertex.buff[m_index.buff[(m_index.tail - n) + i]];
-		draw_coord.x = (static_cast<int>(v->XYZ.X) - offset.x) >> 4;
-		draw_coord.y = (static_cast<int>(v->XYZ.Y) - offset.y) >> 4;
+		const GSVector4i voffset(GSVector4i::loadl(&m_context->XYOFFSET));
 
-		if (m_vertex.tail == n && i == 0)
+		auto get_vertex = [&](u32 i) {
+			GSVector4i v(GSVector4i::loadl(&m_vertex.buff[m_index.buff[(m_index.tail - n) + (i)]].XYZ));
+			v = v.upl16(); // 16->32
+			v = v.sub32(voffset); // -= (OFX, OFY)
+			v = v.sra32(4); // >> 4
+			return v;
+		};
+
+		const GSVector4i xy0(get_vertex(0));
+		GSVector4i min, max;
+		if (m_vertex.tail == n)
 		{
-			temp_draw_rect.x = draw_coord.x;
-			temp_draw_rect.y = draw_coord.y;
-			temp_draw_rect = temp_draw_rect.xyxy();
+			min = xy0;
+			max = xy0;
 		}
 		else
 		{
-			temp_draw_rect.x = std::min(draw_coord.x, temp_draw_rect.x);
-			temp_draw_rect.y = std::min(draw_coord.y, temp_draw_rect.y);
-			temp_draw_rect.z = std::max(draw_coord.x, temp_draw_rect.z);
-			temp_draw_rect.w = std::max(draw_coord.y, temp_draw_rect.w);
+			min = temp_draw_rect.min_i32(xy0);
+			max = temp_draw_rect.zwzw().max_i32(xy0);
 		}
-	}
 
-	const GSVector4i scissor = GSVector4i(m_context->scissor.in);
-	temp_draw_rect.rintersect(scissor);
+		if constexpr (n > 1)
+		{
+			const GSVector4i xy1(get_vertex(1));
+			min = min.min_i32(xy1);
+			max = max.max_i32(xy1);
+
+			if constexpr (n > 2)
+			{
+				const GSVector4i xy2(get_vertex(2));
+				min = min.min_i32(xy2);
+				max = max.max_i32(xy2);
+			}
+		}
+
+		const GSVector4i scissor = GSVector4i(m_context->scissor.in);
+		temp_draw_rect = min.upl64(max).rintersect(scissor);
+	}
 
 	CLUTAutoFlush();
 }

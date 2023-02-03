@@ -206,6 +206,12 @@ protected:
 	bool IsCoverageAlpha();
 
 public:
+	struct GSUploadQueue
+	{
+		GIFRegBITBLTBUF blit;
+		int draw;
+	};
+
 	GIFPath m_path[4];
 	GIFRegPRIM* PRIM;
 	GSPrivRegSet* m_regs;
@@ -222,6 +228,8 @@ public:
 	bool m_mipmap;
 	u32 m_dirty_gs_regs;
 	int m_backed_up_ctx;
+	std::vector<GSUploadQueue> m_draw_transfers;
+	bool m_force_preload;
 
 	static int s_n;
 
@@ -321,6 +329,7 @@ public:
 
 	int GetFramebufferHeight();
 	int GetFramebufferWidth();
+	int GetFramebufferBitDepth();
 	int GetDisplayHMagnification();
 	GSVector4i GetDisplayRect(int i = -1);
 	GSVector4i GetFrameMagnifiedRect(int i = -1);
