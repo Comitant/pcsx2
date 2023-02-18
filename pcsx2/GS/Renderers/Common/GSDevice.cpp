@@ -199,14 +199,6 @@ std::unique_ptr<GSDownloadTexture> GSDevice::CreateDownloadTexture(u32 width, u3
 	return {};
 }
 
-void GSDevice::EndScene()
-{
-	m_vertex.start += m_vertex.count;
-	m_vertex.count = 0;
-	m_index.start += m_index.count;
-	m_index.count = 0;
-}
-
 void GSDevice::Recycle(GSTexture* t)
 {
 	if (!t)
@@ -319,7 +311,7 @@ void GSDevice::Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, con
 			}
 		}
 
-		DoMerge(tex, sRect, m_merge, dRect, PMODE, EXTBUF, c);
+		DoMerge(tex, sRect, m_merge, dRect, PMODE, EXTBUF, c, GSConfig.PCRTCOffsets);
 
 		for (size_t i = 0; i < std::size(tex); i++)
 		{
@@ -376,6 +368,7 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 			break;
 		default:
 			m_current = m_merge;
+			break;
 	}
 }
 

@@ -567,7 +567,7 @@ void GSDevice12::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect,
 }
 
 void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
-	const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c)
+	const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
 {
 	GL_PUSH("DoMerge");
 
@@ -575,7 +575,7 @@ void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
 	const bool feedback_write_1 = PMODE.EN1 && sTex[2] != nullptr && EXTBUF.FBIN == 0;
 	const bool feedback_write_2_but_blend_bg = feedback_write_2 && PMODE.SLBG == 1;
-
+	const D3D12::DescriptorHandle& sampler = linear ? m_linear_sampler_cpu : m_point_sampler_cpu;
 	// Merge the 2 source textures (sTex[0],sTex[1]). Final results go to dTex. Feedback write will go to sTex[2].
 	// If either 2nd output is disabled or SLBG is 1, a background color will be used.
 	// Note: background color is also used when outside of the unit rectangle area
@@ -605,7 +605,7 @@ void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 		{
 			static_cast<GSTexture12*>(sTex[1])->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			OMSetRenderTargets(dTex, nullptr, darea);
-			SetUtilityTexture(sTex[1], m_linear_sampler_cpu);
+			SetUtilityTexture(sTex[1], sampler);
 			BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE,
 				D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
 				D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS, c);
@@ -625,7 +625,7 @@ void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 		EndRenderPass();
 		OMSetRenderTargets(sTex[2], nullptr, fbarea);
 		if (dcleared)
-			SetUtilityTexture(dTex, m_linear_sampler_cpu);
+			SetUtilityTexture(dTex, sampler);
 
 		// sTex[2] can be sTex[0], in which case it might be cleared (e.g. Xenosaga).
 		BeginRenderPassForStretchRect(static_cast<GSTexture12*>(sTex[2]), fbarea, GSVector4i(dRect[2]));
@@ -663,7 +663,7 @@ void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 	{
 		// 1st output is enabled. It must be blended
 		SetUtilityRootSignature();
-		SetUtilityTexture(sTex[0], m_linear_sampler_cpu);
+		SetUtilityTexture(sTex[0], sampler);
 		SetPipeline(m_merge[PMODE.MMOD].get());
 		DrawStretchRect(sRect[0], dRect[0], dTex->GetSize());
 	}
@@ -673,7 +673,7 @@ void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 		EndRenderPass();
 		SetUtilityRootSignature();
 		SetPipeline(m_convert[static_cast<int>(ShaderConvert::YUV)].get());
-		SetUtilityTexture(dTex, m_linear_sampler_cpu);
+		SetUtilityTexture(dTex, sampler);
 		OMSetRenderTargets(sTex[2], nullptr, fbarea);
 		BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE);
 		DrawStretchRect(full_r, dRect[2], dsize);
@@ -842,38 +842,10 @@ void GSDevice12::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
-	m_vertex.limit = count;
-	m_vertex.stride = stride;
 	m_vertex.count = count;
 	SetVertexBuffer(m_vertex_stream_buffer.GetGPUPointer(), m_vertex_stream_buffer.GetSize(), stride);
 
 	GSVector4i::storent(m_vertex_stream_buffer.GetCurrentHostPointer(), vertex, count * stride);
-	m_vertex_stream_buffer.CommitMemory(size);
-}
-
-bool GSDevice12::IAMapVertexBuffer(void** vertex, size_t stride, size_t count)
-{
-	const u32 size = static_cast<u32>(stride) * static_cast<u32>(count);
-	if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
-	{
-		ExecuteCommandListAndRestartRenderPass(false, "Mapping bytes to vertex buffer");
-		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
-			pxFailRel("Failed to reserve space for vertices");
-	}
-
-	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
-	m_vertex.limit = m_vertex_stream_buffer.GetCurrentSpace() / stride;
-	m_vertex.stride = stride;
-	m_vertex.count = count;
-	SetVertexBuffer(m_vertex_stream_buffer.GetGPUPointer(), m_vertex_stream_buffer.GetSize(), stride);
-
-	*vertex = m_vertex_stream_buffer.GetCurrentHostPointer();
-	return true;
-}
-
-void GSDevice12::IAUnmapVertexBuffer()
-{
-	const u32 size = static_cast<u32>(m_vertex.stride) * static_cast<u32>(m_vertex.count);
 	m_vertex_stream_buffer.CommitMemory(size);
 }
 
@@ -888,7 +860,6 @@ void GSDevice12::IASetIndexBuffer(const void* index, size_t count)
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u32);
-	m_index.limit = count;
 	m_index.count = count;
 	SetIndexBuffer(m_index_stream_buffer.GetGPUPointer(), m_index_stream_buffer.GetSize(), DXGI_FORMAT_R32_UINT);
 
@@ -1524,6 +1495,8 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_FST", sel.fst);
 	sm.AddMacro("PS_WMS", sel.wms);
 	sm.AddMacro("PS_WMT", sel.wmt);
+	sm.AddMacro("PS_ADJS", sel.adjs);
+	sm.AddMacro("PS_ADJT", sel.adjt);
 	sm.AddMacro("PS_AEM_FMT", sel.aem_fmt);
 	sm.AddMacro("PS_AEM", sel.aem);
 	sm.AddMacro("PS_TFX", sel.tfx);
@@ -1540,13 +1513,13 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_POINT_SAMPLER", sel.point_sampler);
 	sm.AddMacro("PS_SHUFFLE", sel.shuffle);
 	sm.AddMacro("PS_READ_BA", sel.read_ba);
+	sm.AddMacro("PS_READ16_SRC", sel.real16src);
 	sm.AddMacro("PS_CHANNEL_FETCH", sel.channel);
 	sm.AddMacro("PS_TALES_OF_ABYSS_HLE", sel.tales_of_abyss_hle);
 	sm.AddMacro("PS_URBAN_CHAOS_HLE", sel.urban_chaos_hle);
 	sm.AddMacro("PS_DFMT", sel.dfmt);
 	sm.AddMacro("PS_DEPTH_FMT", sel.depth_fmt);
 	sm.AddMacro("PS_PAL_FMT", sel.pal_fmt);
-	sm.AddMacro("PS_INVALID_TEX0", sel.invalid_tex0);
 	sm.AddMacro("PS_HDR", sel.hdr);
 	sm.AddMacro("PS_COLCLIP", sel.colclip);
 	sm.AddMacro("PS_BLEND_A", sel.blend_a);
@@ -2668,8 +2641,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 
 	if (date_image)
 		Recycle(date_image);
-
-	EndScene();
 
 	// now blit the hdr texture back to the original target
 	if (hdr_rt)

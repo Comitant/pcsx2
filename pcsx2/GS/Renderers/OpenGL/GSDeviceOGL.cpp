@@ -1042,6 +1042,8 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 	std::string macro = fmt::format("#define PS_FST {}\n", sel.fst)
 		+ fmt::format("#define PS_WMS {}\n", sel.wms)
 		+ fmt::format("#define PS_WMT {}\n", sel.wmt)
+		+ fmt::format("#define PS_ADJS {}\n", sel.adjs)
+		+ fmt::format("#define PS_ADJT {}\n", sel.adjt)
 		+ fmt::format("#define PS_AEM_FMT {}\n", sel.aem_fmt)
 		+ fmt::format("#define PS_PAL_FMT {}\n", sel.pal_fmt)
 		+ fmt::format("#define PS_DFMT {}\n", sel.dfmt)
@@ -1050,7 +1052,6 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 		+ fmt::format("#define PS_URBAN_CHAOS_HLE {}\n", sel.urban_chaos_hle)
 		+ fmt::format("#define PS_TALES_OF_ABYSS_HLE {}\n", sel.tales_of_abyss_hle)
 		+ fmt::format("#define PS_TEX_IS_FB {}\n", sel.tex_is_fb)
-		+ fmt::format("#define PS_INVALID_TEX0 {}\n", sel.invalid_tex0)
 		+ fmt::format("#define PS_AEM {}\n", sel.aem)
 		+ fmt::format("#define PS_TFX {}\n", sel.tfx)
 		+ fmt::format("#define PS_TCC {}\n", sel.tcc)
@@ -1072,6 +1073,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 		+ fmt::format("#define PS_IIP {}\n", sel.iip)
 		+ fmt::format("#define PS_SHUFFLE {}\n", sel.shuffle)
 		+ fmt::format("#define PS_READ_BA {}\n", sel.read_ba)
+		+ fmt::format("#define PS_READ16_SRC {}\n", sel.real16src)
 		+ fmt::format("#define PS_WRITE_RG {}\n", sel.write_rg)
 		+ fmt::format("#define PS_FBMASK {}\n", sel.fbmask)
 		+ fmt::format("#define PS_HDR {}\n", sel.hdr)
@@ -1106,7 +1108,6 @@ void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2
 
 	const GSVector4 float_r(r);
 
-	BeginScene();
 	m_convert.ps[static_cast<int>(ShaderConvert::COPY)].Bind();
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState();
@@ -1114,7 +1115,6 @@ void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2
 	PSSetShaderResource(0, sTex);
 	PSSetSamplerState(linear ? m_convert.ln : m_convert.pt);
 	DrawStretchRect(float_r / (GSVector4(sTex->GetSize()).xyxy()), float_r, dsize);
-	EndScene();
 
 	glEnable(GL_SCISSOR_TEST);
 }
@@ -1203,8 +1203,6 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	// Init
 	// ************************************
 
-	BeginScene();
-
 	GL_PUSH("StretchRect from %d to %d", sTex->GetID(), dTex->GetID());
 	if (draw_in_depth)
 		OMSetRenderTargets(NULL, dTex);
@@ -1236,19 +1234,11 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	// Draw
 	// ************************************
 	DrawStretchRect(sRect, dRect, dTex->GetSize());
-
-	// ************************************
-	// End
-	// ************************************
-
-	EndScene();
 }
 
 void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, bool linear)
 {
 	ASSERT(sTex);
-
-	BeginScene();
 
 	const GSVector2i ds(dTex ? dTex->GetSize() : GSVector2i(g_host_display->GetWindowWidth(), g_host_display->GetWindowHeight()));
 	DisplayConstantBuffer cb;
@@ -1282,14 +1272,10 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	// Only flipping the backbuffer is transparent (I hope)...
 	const GSVector4 flip_sr(sRect.xwzy());
 	DrawStretchRect(flip_sr, dRect, ds);
-
-	EndScene();
 }
 
 void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
 {
-	BeginScene();
-
 	const ShaderConvert shader = (dSize == 16) ? ShaderConvert::CLUT_4 : ShaderConvert::CLUT_8;
 	GL::Program& prog = m_convert.ps[static_cast<int>(shader)];
 	prog.Bind();
@@ -1306,8 +1292,6 @@ void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, u32 offsetX, u32 offsetY, G
 
 	const GSVector4 dRect(0, 0, dSize, 1);
 	DrawStretchRect(GSVector4::zero(), dRect, dTex->GetSize());
-
-	EndScene();
 }
 
 void GSDeviceOGL::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect, const GSVector2i& ds)
@@ -1338,7 +1322,7 @@ void GSDeviceOGL::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect
 	DrawPrimitive();
 }
 
-void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c)
+void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
 {
 	GL_PUSH("DoMerge");
 
@@ -1357,7 +1341,7 @@ void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex,
 	{
 		// 2nd output is enabled and selected. Copy it to destination so we can blend it with 1st output
 		// Note: value outside of dRect must contains the background color (c)
-		StretchRect(sTex[1], sRect[1], dTex, PMODE.SLBG ? dRect[2] : dRect[1], ShaderConvert::COPY);
+		StretchRect(sTex[1], sRect[1], dTex, PMODE.SLBG ? dRect[2] : dRect[1], ShaderConvert::COPY, linear);
 	}
 
 	// Upload constant to select YUV algo
@@ -1370,7 +1354,7 @@ void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex,
 
 	// Save 2nd output
 	if (feedback_write_2)
-		StretchRect(dTex, full_r, sTex[2], dRect[2], ShaderConvert::YUV);
+		StretchRect(dTex, full_r, sTex[2], dRect[2], ShaderConvert::YUV, linear);
 
 	// Restore background color to process the normal merge
 	if (feedback_write_2_but_blend_bg)
@@ -1387,17 +1371,17 @@ void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex,
 			// Blend with a constant alpha
 			m_merge_obj.ps[1].Bind();
 			m_merge_obj.ps[1].Uniform4fv(0, c.v);
-			StretchRect(sTex[0], sRect[0], dTex, dRect[0], m_merge_obj.ps[1], true, OMColorMaskSelector());
+			StretchRect(sTex[0], sRect[0], dTex, dRect[0], m_merge_obj.ps[1], true, OMColorMaskSelector(), linear);
 		}
 		else
 		{
 			// Blend with 2 * input alpha
-			StretchRect(sTex[0], sRect[0], dTex, dRect[0], m_merge_obj.ps[0], true, OMColorMaskSelector());
+			StretchRect(sTex[0], sRect[0], dTex, dRect[0], m_merge_obj.ps[0], true, OMColorMaskSelector(), linear);
 		}
 	}
 
 	if (feedback_write_1)
-		StretchRect(dTex, full_r, sTex[2], dRect[2], ShaderConvert::YUV);
+		StretchRect(dTex, full_r, sTex[2], dRect[2], ShaderConvert::YUV, linear);
 }
 
 void GSDeviceOGL::DoInterlace(GSTexture* sTex, GSTexture* dTex, int shader, bool linear, float yoffset, int bufIdx)
@@ -1471,8 +1455,6 @@ void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* ver
 
 	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
 
-	BeginScene();
-
 	ClearStencil(ds, 0);
 
 	m_convert.ps[static_cast<int>(datm ? ShaderConvert::DATM_1 : ShaderConvert::DATM_0)].Bind();
@@ -1503,8 +1485,6 @@ void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* ver
 	{
 		glEnable(GL_BLEND);
 	}
-
-	EndScene();
 }
 
 void GSDeviceOGL::IASetVertexBuffer(const void* vertices, size_t count)
@@ -1907,8 +1887,6 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		CopyRect(config.rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 	}
 
-	BeginScene();
-
 	IASetVertexBuffer(config.verts, config.nverts);
 	IASetIndexBuffer(config.indices, config.nindices);
 	GLenum topology = 0;
@@ -2060,10 +2038,6 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	if (draw_rt_clone)
 		Recycle(draw_rt_clone);
 
-	EndScene();
-
-	// Warning: EndScene must be called before StretchRect otherwise
-	// vertices will be overwritten. Trust me you don't want to do that.
 	if (hdr_rt)
 	{
 		GSVector2i size = config.rt->GetSize();

@@ -137,7 +137,7 @@ static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& descriptio
 			version |= strtol(vermin, (char**)NULL, 0);
 			foundRomVer = true;
 
-			Console.WriteLn("Bios Found: %s", description.c_str());
+			Console.WriteLn("BIOS Found: %s", description.c_str());
 		}
 
 		if ((rd.fileSize % 0x10) == 0)
@@ -311,7 +311,7 @@ bool LoadBIOS()
 	if (EmuConfig.CurrentIRX.length() > 3)
 		LoadIrx(EmuConfig.CurrentIRX, &eeMem->ROM[0x3C0000], sizeof(eeMem->ROM) - 0x3C0000);
 
-	CurrentBiosInformation.threadListAddr = 0;
+	CurrentBiosInformation.eeThreadListAddr = 0;
 	return true;
 }
 

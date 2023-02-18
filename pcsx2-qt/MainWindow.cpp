@@ -983,27 +983,28 @@ void MainWindow::saveStateToConfig()
 	if (!isVisible())
 		return;
 
+	bool changed = false;
+
+	const QByteArray geometry(saveGeometry());
+	const QByteArray geometry_b64(geometry.toBase64());
+	const std::string old_geometry_b64(Host::GetBaseStringSettingValue("UI", "MainWindowGeometry"));
+	if (old_geometry_b64 != geometry_b64.constData())
 	{
-		const QByteArray geometry = saveGeometry();
-		const QByteArray geometry_b64 = geometry.toBase64();
-		const std::string old_geometry_b64 = Host::GetBaseStringSettingValue("UI", "MainWindowGeometry");
-		if (old_geometry_b64 != geometry_b64.constData())
-		{
-			Host::SetBaseStringSettingValue("UI", "MainWindowGeometry", geometry_b64.constData());
-			Host::CommitBaseSettingChanges();
-		}
+		Host::SetBaseStringSettingValue("UI", "MainWindowGeometry", geometry_b64.constData());
+		changed = true;
 	}
 
+	const QByteArray state(saveState());
+	const QByteArray state_b64(state.toBase64());
+	const std::string old_state_b64(Host::GetBaseStringSettingValue("UI", "MainWindowState"));
+	if (old_state_b64 != state_b64.constData())
 	{
-		const QByteArray state = saveState();
-		const QByteArray state_b64 = state.toBase64();
-		const std::string old_state_b64 = Host::GetBaseStringSettingValue("UI", "MainWindowState");
-		if (old_state_b64 != state_b64.constData())
-		{
-			Host::SetBaseStringSettingValue("UI", "MainWindowState", state_b64.constData());
-			Host::CommitBaseSettingChanges();
-		}
+		Host::SetBaseStringSettingValue("UI", "MainWindowState", state_b64.constData());
+		changed = true;
 	}
+
+	if (changed)
+		Host::CommitBaseSettingChanges();
 }
 
 void MainWindow::restoreStateFromConfig()
@@ -1932,6 +1933,7 @@ void MainWindow::onVMStopped()
 	// If we're closing or in batch mode, quit the whole application now.
 	if (m_is_closing || QtHost::InBatchMode())
 	{
+		QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 1);
 		QCoreApplication::quit();
 		return;
 	}
@@ -1975,16 +1977,24 @@ void MainWindow::showEvent(QShowEvent* event)
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-	if (!requestShutdown(true, true, EmuConfig.SaveStateOnShutdown))
+	// If there's no VM, we can just exit as normal.
+	if (!s_vm_valid)
 	{
-		event->ignore();
+		saveStateToConfig();
+		QMainWindow::closeEvent(event);
 		return;
 	}
 
-	saveStateToConfig();
-	m_is_closing = true;
+	// But if there is, we have to cancel the action, regardless of whether we ended exiting
+	// or not. The window still needs to be visible while GS is shutting down.
+	event->ignore();
 
-	QMainWindow::closeEvent(event);
+	// Exit cancelled?
+	if (!requestShutdown(true, true, EmuConfig.SaveStateOnShutdown))
+		return;
+
+	// Application will be exited in VM stopped handler.
+	m_is_closing = true;
 }
 
 static QString getFilenameFromMimeData(const QMimeData* md)
@@ -2249,7 +2259,12 @@ void MainWindow::createDisplayWidget(bool fullscreen, bool render_to_main, bool 
 		// Don't risk doing this on Wayland, it really doesn't like window state changes,
 		// and positioning has no effect anyway.
 		if (!s_use_central_widget)
-			restoreDisplayWindowGeometryFromConfig();
+		{
+			if (isVisible() && g_emu_thread->shouldRenderToMain())
+				container->move(pos());
+			else
+				restoreDisplayWindowGeometryFromConfig();
+		}
 
 		if (!is_exclusive_fullscreen)
 			container->showFullScreen();

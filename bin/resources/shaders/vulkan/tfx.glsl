@@ -312,6 +312,8 @@ void main()
 #define PS_FST 0
 #define PS_WMS 0
 #define PS_WMT 0
+#define PS_ADJS 0
+#define PS_ADJT 0
 #define PS_FMT FMT_32
 #define PS_AEM 0
 #define PS_TFX 0
@@ -326,13 +328,13 @@ void main()
 #define PS_POINT_SAMPLER 0
 #define PS_SHUFFLE 0
 #define PS_READ_BA 0
+#define PS_READ16_SRC 0
 #define PS_DFMT 0
 #define PS_DEPTH_FMT 0
 #define PS_PAL_FMT 0
 #define PS_CHANNEL_FETCH 0
 #define PS_TALES_OF_ABYSS_HLE 0
 #define PS_URBAN_CHAOS_HLE 0
-#define PS_INVALID_TEX0 0
 #define PS_SCALE_FACTOR 1.0
 #define PS_HDR 0
 #define PS_COLCLIP 0
@@ -361,10 +363,10 @@ layout(std140, set = 0, binding = 1) uniform cb1
 	vec2 TA;
 	float MaxDepthPS;
 	float Af;
-	uvec4 MskFix;
 	uvec4 FbMask;
 	vec4 HalfTexel;
 	vec4 MinMax;
+	vec4 STRange;
 	ivec4 ChannelShuffle;
 	vec2 TC_OffsetHack;
 	vec2 STScale;
@@ -420,7 +422,20 @@ vec4 sample_c(vec2 uv)
 		// As of 2018 this issue is still present.
 		uv = (trunc(uv * WH.zw) + vec2(0.5, 0.5)) / WH.zw;
 #endif
+#if !PS_ADJS && !PS_ADJT
 	uv *= STScale;
+#else
+	#if PS_ADJS
+		uv.x = (uv.x - STRange.x) * STRange.z;
+	#else
+		uv.x = uv.x * STScale.x;
+	#endif
+	#if PS_ADJT
+		uv.y = (uv.y - STRange.y) * STRange.w;
+	#else
+		uv.y = uv.y * STScale.y;
+	#endif
+#endif
 
 #if PS_AUTOMATIC_LOD == 1
     return texture(Texture, uv);
@@ -455,13 +470,7 @@ vec4 sample_p_norm(float u)
 
 vec4 clamp_wrap_uv(vec4 uv)
 {
-	vec4 tex_size;
-
-	#if PS_INVALID_TEX0
-		tex_size = WH.zwzw;
-	#else
-		tex_size = WH.xyxy;
-	#endif
+	vec4 tex_size = WH.xyxy;
 
 	#if PS_WMS == PS_WMT
 	{
@@ -476,7 +485,7 @@ vec4 clamp_wrap_uv(vec4 uv)
 			// textures. Fixes Xenosaga's hair issue.
 			uv = fract(uv);
 			#endif
-			uv = vec4((uvec4(uv * tex_size) & MskFix.xyxy) | MskFix.zwzw) / tex_size;
+			uv = vec4((uvec4(uv * tex_size) & floatBitsToUint(MinMax.xyxy)) | floatBitsToUint(MinMax.zwzw)) / tex_size;
 		}
 		#endif
 	}
@@ -491,7 +500,7 @@ vec4 clamp_wrap_uv(vec4 uv)
 			#if PS_FST == 0
 			uv.xz = fract(uv.xz);
 			#endif
-			uv.xz = vec2((uvec2(uv.xz * tex_size.xx) & MskFix.xx) | MskFix.zz) / tex_size.xx;
+			uv.xz = vec2((uvec2(uv.xz * tex_size.xx) & floatBitsToUint(MinMax.xx)) | floatBitsToUint(MinMax.zz)) / tex_size.xx;
 		}
 		#endif
 		#if PS_WMT == 2
@@ -503,7 +512,7 @@ vec4 clamp_wrap_uv(vec4 uv)
 			#if PS_FST == 0
 			uv.yw = fract(uv.yw);
 			#endif
-			uv.yw = vec2((uvec2(uv.yw * tex_size.yy) & MskFix.yy) | MskFix.ww) / tex_size.yy;
+			uv.yw = vec2((uvec2(uv.yw * tex_size.yy) & floatBitsToUint(MinMax.yy)) | floatBitsToUint(MinMax.ww)) / tex_size.yy;
 		}
 		#endif
 	}
@@ -590,7 +599,7 @@ vec4 fetch_c(ivec2 uv)
 
 ivec2 clamp_wrap_uv_depth(ivec2 uv)
 {
-	ivec4 mask = ivec4(MskFix << 4);
+	ivec4 mask = floatBitsToInt(MinMax) << 4;
 	#if (PS_WMS == PS_WMT)
 	{
 		#if (PS_WMS == 2)
@@ -907,11 +916,7 @@ vec4 fog(vec4 c, float f)
 
 vec4 ps_color()
 {
-#if PS_FST == 0 && PS_INVALID_TEX0 == 1
-	// Re-normalize coordinate from invalid GS to corrected texture size
-	vec2 st = (vsIn.t.xy * WH.xy) / (vsIn.t.w * WH.zw);
-	vec2 st_int = (vsIn.ti.zw * WH.xy) / (vsIn.t.w * WH.zw);
-#elif PS_FST == 0
+#if PS_FST == 0
 	vec2 st = vsIn.t.xy / vsIn.t.w;
 	vec2 st_int = vsIn.ti.zw / vsIn.t.w;
 #else
@@ -1171,24 +1176,31 @@ void main()
 	#if PS_SHUFFLE
 		uvec4 denorm_c = uvec4(C);
 		uvec2 denorm_TA = uvec2(vec2(TA.xy) * 255.0f + 0.5f);
-
-		// Mask will take care of the correct destination
-		#if PS_READ_BA
-			C.rb = C.bb;
-		#else
-			C.rb = C.rr;
-		#endif
-
-		#if PS_READ_BA
+		#if PS_READ16_SRC
+			C.rb = vec2(float((denorm_c.r >> 3) | (((denorm_c.g >> 3) & 0x7u) << 5)));
 			if ((denorm_c.a & 0x80u) != 0u)
-				C.ga = vec2(float((denorm_c.a & 0x7Fu) | (denorm_TA.y & 0x80u)));
+				C.ga = vec2(float((denorm_c.g >> 6) | ((denorm_c.b >> 3) << 2) | (denorm_TA.y & 0x80u)));
 			else
-				C.ga = vec2(float((denorm_c.a & 0x7Fu) | (denorm_TA.x & 0x80u)));
+				C.ga = vec2(float((denorm_c.g >> 6) | ((denorm_c.b >> 3) << 2) | (denorm_TA.x & 0x80u)));
 		#else
-			if ((denorm_c.g & 0x80u) != 0u)
-				C.ga = vec2(float((denorm_c.g & 0x7Fu) | (denorm_TA.y & 0x80u)));
-			else
-				C.ga = vec2(float((denorm_c.g & 0x7Fu) | (denorm_TA.x & 0x80u)));
+			// Mask will take care of the correct destination
+			#if PS_READ_BA
+				C.rb = C.bb;
+			#else
+				C.rb = C.rr;
+			#endif
+
+			#if PS_READ_BA
+				if ((denorm_c.a & 0x80u) != 0u)
+					C.ga = vec2(float((denorm_c.a & 0x7Fu) | (denorm_TA.y & 0x80u)));
+				else
+					C.ga = vec2(float((denorm_c.a & 0x7Fu) | (denorm_TA.x & 0x80u)));
+			#else
+				if ((denorm_c.g & 0x80u) != 0u)
+					C.ga = vec2(float((denorm_c.g & 0x7Fu) | (denorm_TA.y & 0x80u)));
+				else
+					C.ga = vec2(float((denorm_c.g & 0x7Fu) | (denorm_TA.x & 0x80u)));
+			#endif
 		#endif
 	#endif
 
