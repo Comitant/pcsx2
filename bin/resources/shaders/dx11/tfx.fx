@@ -53,6 +53,7 @@
 #define PS_BLEND_C 0
 #define PS_BLEND_D 0
 #define PS_BLEND_MIX 0
+#define PS_ROUND_INV 0
 #define PS_FIXED_ONE_A 0
 #define PS_PABE 0
 #define PS_DITHER 0
@@ -741,7 +742,11 @@ void ps_dither(inout float3 C, float2 pos_xy)
 		else
 			fpos = int2(pos_xy / (float)PS_SCALE_FACTOR);
 
-		C += DitherMatrix[fpos.x & 3][fpos.y & 3];
+		float value = DitherMatrix[fpos.x & 3][fpos.y & 3];
+		if (PS_ROUND_INV != 0)
+			C -= value;
+		else
+			C += value;
 	}
 }
 
@@ -751,6 +756,9 @@ void ps_color_clamp_wrap(inout float3 C)
 	// so we need to limit the color depth on dithered items
 	if (SW_BLEND || PS_DITHER || PS_FBMASK)
 	{
+		if (PS_DFMT == FMT_16 && PS_BLEND_MIX == 0 && PS_ROUND_INV != 0)
+			C += 7.0f; // Need to round up, not down since the shader will invert
+
 		// Standard Clamp
 		if (PS_COLCLIP == 0 && PS_HDR == 0)
 			C = clamp(C, (float3)0.0f, (float3)255.0f);
@@ -763,8 +771,10 @@ void ps_color_clamp_wrap(inout float3 C)
 	}
 }
 
-void ps_blend(inout float4 Color, inout float As, float2 pos_xy)
+void ps_blend(inout float4 Color, inout float4 As_rgba, float2 pos_xy)
 {
+	float As = As_rgba.a;
+
 	if (SW_BLEND)
 	{
 		// PABE
@@ -811,17 +821,15 @@ void ps_blend(inout float4 Color, inout float As, float2 pos_xy)
 
 		if (PS_CLR_HW == 1)
 		{
-			// Replace Af with As so we can do proper compensation for Alpha.
-			if (PS_BLEND_C == 2)
-				As = Af;
+			// As or Af
+			As_rgba.rgb = (float3)C;
 			// Subtract 1 for alpha to compensate for the changed equation,
 			// if c.rgb > 255.0f then we further need to adjust alpha accordingly,
 			// we pick the lowest overflow from all colors because it's the safest,
 			// we divide by 255 the color because we don't know Cd value,
 			// changed alpha should only be done for hw blend.
-			float min_color = min(min(Color.r, Color.g), Color.b);
-			float alpha_compensate = max(1.0f, min_color / 255.0f);
-			As -= alpha_compensate;
+			float3 alpha_compensate = max((float3)1.0f, Color.rgb / (float3)255.0f);
+			As_rgba.rgb -= alpha_compensate;
 		}
 		else if (PS_CLR_HW == 2)
 		{
@@ -832,6 +840,16 @@ void ps_blend(inout float4 Color, inout float As, float2 pos_xy)
 			// blended value it can be.
 			float color_compensate = 1.0f * (C + 1.0f);
 			Color.rgb -= (float3)color_compensate;
+		}
+		else if (PS_CLR_HW == 3)
+		{
+			// As, Ad or Af clamped.
+			As_rgba.rgb = (float3)C_clamped;
+			// Cs*(Alpha + 1) might overflow, if it does then adjust alpha value
+			// that is sent on second output to compensate.
+			float3 overflow_check = (Color.rgb - (float3)255.0f) / 255.0f;
+			float3 alpha_compensate = max((float3)0.0f, overflow_check);
+			As_rgba.rgb -= alpha_compensate;
 		}
 	}
 	else
@@ -920,15 +938,15 @@ PS_OUTPUT ps_main(PS_INPUT input)
 		C.a = 128.0f;
 	}
 
-	float alpha_blend;
+	float4 alpha_blend;
 	if (PS_BLEND_C == 1 && PS_CLR_HW > 3)
 	{
 		float4 RT = trunc(RtTexture.Load(int3(input.p.xy, 0)) * 255.0f + 0.1f);
-		alpha_blend = RT.a / 128.0f;
+		alpha_blend = (float4)(RT.a / 128.0f);
 	}
 	else
 	{
-		alpha_blend = C.a / 128.0f;
+		alpha_blend = (float4)(C.a / 128.0f);
 	}
 
 	// Alpha correction
@@ -978,12 +996,12 @@ PS_OUTPUT ps_main(PS_INPUT input)
 #if !PS_NO_COLOR
 	output.c0 = PS_HDR ? float4(C.rgb / 65535.0f, C.a / 255.0f) : C / 255.0f;
 #if !PS_NO_COLOR1
-	output.c1 = (float4)(alpha_blend);
+	output.c1 = alpha_blend;
 #endif
 
 #if PS_NO_ABLEND
 	// write alpha blend factor into col0
-	output.c0.a = alpha_blend;
+	output.c0.a = alpha_blend.a;
 #endif
 #if PS_ONLY_ALPHA
 	// rgb isn't used
