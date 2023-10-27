@@ -3568,6 +3568,15 @@ void FullscreenUI::DrawGraphicsSettingsPage()
 
 void FullscreenUI::DrawAudioSettingsPage()
 {
+
+	static constexpr const char* interpolation_modes[] = {
+		FSUI_NSTR("Nearest (Fastest / worst quality)"),
+		FSUI_NSTR("Linear (Simple / okay sound)"),
+		FSUI_NSTR("Cubic (Fake highs / okay sound)"),
+		FSUI_NSTR("Hermite (Better highs / okay sound)"),
+		FSUI_NSTR("Catmull-Rom (PS2-like / good sound)"),
+		FSUI_NSTR("Gaussian (PS2-like / great sound)"),
+	};
 	static constexpr const char* synchronization_modes[] = {
 		FSUI_NSTR("TimeStretch (Recommended)"),
 		FSUI_NSTR("Async Mix (Breaks some games!)"),
@@ -3605,6 +3614,10 @@ void FullscreenUI::DrawAudioSettingsPage()
 		FSUI_CSTR("%d%%"));
 
 	MenuHeading(FSUI_CSTR("Mixing Settings"));
+	DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_MUSIC, "Interpolation Mode"),
+		FSUI_CSTR("Determines how ADPCM samples are interpolated to the target pitch."), "SPU2/Mixing", "Interpolation",
+		static_cast<int>(Pcsx2Config::SPU2Options::InterpolationMode::Gaussian), interpolation_modes,
+		std::size(interpolation_modes), true);
 	DrawIntListSetting(bsi, FSUI_ICONSTR(ICON_FA_SYNC_ALT, "Synchronization Mode"),
 		FSUI_CSTR("Changes when SPU samples are generated relative to system emulation."), "SPU2/Output", "SynchMode",
 		static_cast<int>(Pcsx2Config::SPU2Options::SynchronizationMode::TimeStretch), synchronization_modes,

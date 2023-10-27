@@ -1077,7 +1077,8 @@ void Pcsx2Config::SPU2Options::LoadSave(SettingsWrapper& wrap)
 	}
 	{
 		SettingsWrapSection("SPU2/Mixing");
-
+		
+		Interpolation = static_cast<InterpolationMode>(wrap.EntryBitfield(CURRENT_SETTINGS_SECTION, "Interpolation", static_cast<int>(Interpolation), static_cast<int>(Interpolation)));
 		SettingsWrapEntry(FinalVolume);
 	}
 
@@ -1107,6 +1108,7 @@ bool Pcsx2Config::SPU2Options::operator==(const SPU2Options& right) const
 {
 	return OpEqu(bitset) &&
 
+		   OpEqu(Interpolation) &&
 		   OpEqu(SynchMode) &&
 
 		   OpEqu(FinalVolume) &&

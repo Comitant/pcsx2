@@ -14,6 +14,7 @@
 #include "SettingWidgetBinder.h"
 #include "SettingsWindow.h"
 
+static constexpr s32 DEFAULT_INTERPOLATION_MODE = 5;
 static constexpr s32 DEFAULT_SYNCHRONIZATION_MODE = 0;
 static constexpr s32 DEFAULT_EXPANSION_MODE = 0;
 static constexpr s32 DEFAULT_DPL_DECODING_LEVEL = 0;
@@ -34,6 +35,7 @@ AudioSettingsWidget::AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent
 	m_ui.setupUi(this);
 	populateOutputModules();
 
+	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.interpolation, "SPU2/Mixing", "Interpolation", DEFAULT_INTERPOLATION_MODE);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.syncMode, "SPU2/Output", "SynchMode", DEFAULT_SYNCHRONIZATION_MODE);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.expansionMode, "SPU2/Output", "SpeakerConfiguration", DEFAULT_EXPANSION_MODE);
 	SettingWidgetBinder::BindWidgetToIntSetting(sif, m_ui.dplLevel, "SPU2/Output", "DplDecodingLevel", DEFAULT_DPL_DECODING_LEVEL);
@@ -85,6 +87,8 @@ AudioSettingsWidget::AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent
 
 	onMinimalOutputLatencyStateChanged();
 	updateLatencyLabels();
+
+	dialog->registerWidgetHelp(m_ui.interpolation, tr("Interpolation"), tr("Gaussian (PS2-like / great sound)"), tr(""));
 
 	dialog->registerWidgetHelp(m_ui.syncMode, tr("Synchronization"), tr("TimeStretch (Recommended)"),
 		tr("When running outside of 100% speed, adjusts the tempo on audio instead of dropping frames. Produces much nicer fast-forward/slowdown audio."));
