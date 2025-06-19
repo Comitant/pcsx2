@@ -310,6 +310,32 @@ __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1,
 	return out;
 }
 
+__forceinline static s32 CatmullRomInterpolate(
+	s32 y0, // 16.0
+	s32 y1, // 16.0
+	s32 y2, // 16.0
+	s32 y3, // 16.0
+	s32 mu //  0.12
+)
+{
+	//q(t) = 0.5 *(    	(2 * P1) +
+	//	(-P0 + P2) * t +
+	//	(2*P0 - 5*P1 + 4*P2 - P3) * t2 +
+	//	(-P0 + 3*P1- 3*P2 + P3) * t3)
+
+	s32 a3 = (-y0 + 3 * y1 - 3 * y2 + y3);
+	s32 a2 = (2 * y0 - 5 * y1 + 4 * y2 - y3);
+	s32 a1 = (-y0 + y2);
+	s32 a0 = (2 * y1);
+
+	s32 val = ((a3)*mu) >> 12;
+	val = ((a2 + val) * mu) >> 12;
+	val = ((a1 + val) * mu) >> 12;
+
+	return (a0 + val) >> 1;
+}
+
+template <Pcsx2Config::SPU2Options::SPU2InterpMode InterpType>
 static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 {
 	V_Voice& vc(thiscore.Voices[voiceidx]);
@@ -325,7 +351,14 @@ static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 
 	const s32 mu = vc.SP + 0x1000;
 
-	return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0ff0) >> 4);
+	if constexpr (InterpType == Pcsx2Config::SPU2Options::SPU2InterpMode::Gaussian)
+	{
+		return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0FF0) >> 4);
+	}
+	else
+	{
+		return CatmullRomInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, mu);
+	}
 }
 
 // This is Dr. Hell's noise algorithm as implemented in pcsxr
@@ -427,7 +460,20 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 		if (vc.Noise)
 			Value = GetNoiseValues(thiscore);
 		else
-			Value = GetVoiceValues(thiscore, voiceidx);
+		{
+
+			switch (EmuConfig.SPU2.InterpMode)
+			{
+				case Pcsx2Config::SPU2Options::SPU2InterpMode::Gaussian:
+					Value = GetVoiceValues<Pcsx2Config::SPU2Options::SPU2InterpMode::Gaussian>(thiscore, voiceidx);
+					break;
+				case Pcsx2Config::SPU2Options::SPU2InterpMode::CatmullRom:
+					Value = GetVoiceValues<Pcsx2Config::SPU2Options::SPU2InterpMode::CatmullRom>(thiscore, voiceidx);
+					break;
+
+				jNO_DEFAULT;
+			}
+		}
 
 		// Update and Apply ADSR  (applies to normal and noise sources)
 

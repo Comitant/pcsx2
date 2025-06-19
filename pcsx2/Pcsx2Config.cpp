@@ -1149,14 +1149,48 @@ bool Pcsx2Config::GSOptions::ShouldDump(int draw, int frame) const
 		   (frameOffset >= 0) && ((SaveFrameCount < 0) || (frameOffset < SaveFrameCount)) && (frameOffset % SaveFrameBy == 0);
 }
 
+static constexpr const std::array i_spu2_interp_mode_names = {
+	"Gaussian",
+	"Catmull-Rom",
+};
+
+static constexpr const std::array i_spu2_interp_mode_display_names = {
+	TRANSLATE_NOOP("Pcsx2Config", "Gaussian (Smooth)"),
+	TRANSLATE_NOOP("Pcsx2Config", "Catmull-Rom (Crisp)"),
+};
+
 static constexpr const std::array s_spu2_sync_mode_names = {
 	"Disabled",
 	"TimeStretch",
 };
+
 static constexpr const std::array s_spu2_sync_mode_display_names = {
 	TRANSLATE_NOOP("Pcsx2Config", "Disabled (Noisy)"),
 	TRANSLATE_NOOP("Pcsx2Config", "TimeStretch (Recommended)"),
 };
+
+const char* Pcsx2Config::SPU2Options::GetInterpModeName(SPU2InterpMode mode)
+{
+	return (static_cast<size_t>(mode) < i_spu2_interp_mode_names.size()) ? i_spu2_interp_mode_names[static_cast<size_t>(mode)] : "";
+}
+
+const char* Pcsx2Config::SPU2Options::GetInterpModeDisplayName(SPU2InterpMode mode)
+{
+	return (static_cast<size_t>(mode) < i_spu2_interp_mode_display_names.size()) ?
+			   Host::TranslateToCString("Pcsx2Config", i_spu2_interp_mode_display_names[static_cast<size_t>(mode)]) :
+			   "";
+}
+
+std::optional<Pcsx2Config::SPU2Options::SPU2InterpMode> Pcsx2Config::SPU2Options::ParseInterpMode(const char* name)
+{
+	for (u8 i = 0; i < static_cast<u8>(SPU2InterpMode::Count); i++)
+	{
+		if (std::strcmp(name, i_spu2_interp_mode_names[i]) == 0)
+			return static_cast<SPU2InterpMode>(i);
+	}
+
+	return std::nullopt;
+}
 
 const char* Pcsx2Config::SPU2Options::GetSyncModeName(SPU2SyncMode mode)
 {
@@ -1232,6 +1266,7 @@ void Pcsx2Config::SPU2Options::LoadSave(SettingsWrapper& wrap)
 		SettingsWrapEntry(FastForwardVolume);
 		SettingsWrapEntry(OutputMuted);
 		SettingsWrapParsedEnum(Backend, "Backend", &AudioStream::ParseBackendName, &AudioStream::GetBackendName);
+		SettingsWrapParsedEnum(InterpMode, "InterpMode", &ParseInterpMode, &GetInterpModeName);
 		SettingsWrapParsedEnum(SyncMode, "SyncMode", &ParseSyncMode, &GetSyncModeName);
 		SettingsWrapEntry(DriverName);
 		SettingsWrapEntry(DeviceName);

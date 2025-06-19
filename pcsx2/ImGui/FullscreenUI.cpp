@@ -4811,6 +4811,7 @@ void FullscreenUI::DrawGraphicsSettingsPage(SettingsInterface* bsi, bool show_ad
 
 void FullscreenUI::DrawAudioSettingsPage()
 {
+
 	SettingsInterface* bsi = GetEditingSettingsInterface();
 
 	BeginMenuButtons();
@@ -4839,6 +4840,11 @@ void FullscreenUI::DrawAudioSettingsPage()
 		"ExpansionMode", AudioStreamParameters::DEFAULT_EXPANSION_MODE, &AudioStream::ParseExpansionMode,
 		&AudioStream::GetExpansionModeName, &AudioStream::GetExpansionModeDisplayName,
 		AudioExpansionMode::Count);
+	DrawEnumSetting(bsi, FSUI_ICONSTR(ICON_FA_MUSIC, "Interpolation Mode"),
+		FSUI_CSTR("Determines how ADPCM samples are interpolated to the target pitch."),
+		"SPU2/Output", "InterpMode", (Pcsx2Config::SPU2Options::DEFAULT_INTERPOLATION_MODE),
+		&Pcsx2Config::SPU2Options::ParseInterpMode, &Pcsx2Config::SPU2Options::GetInterpModeName,
+		&Pcsx2Config::SPU2Options::GetInterpModeDisplayName, Pcsx2Config::SPU2Options::SPU2InterpMode::Count);
 	DrawEnumSetting(bsi, FSUI_ICONSTR(ICON_FA_ARROWS_SPIN, "Synchronization"),
 		FSUI_CSTR("Changes when SPU samples are generated relative to system emulation."),
 		"SPU2/Output", "SyncMode", Pcsx2Config::SPU2Options::DEFAULT_SYNC_MODE,
