@@ -35,6 +35,13 @@ AudioSettingsWidget::AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent
 			QString::fromUtf8(AudioStream::GetExpansionModeDisplayName(static_cast<AudioExpansionMode>(i))));
 	}
 
+	for (u32 i = 0; i < static_cast<u32>(Pcsx2Config::SPU2Options::SPU2InterpMode::Count); i++)
+	{
+		m_ui.interpMode->addItem(
+			QString::fromUtf8(Pcsx2Config::SPU2Options::GetInterpModeDisplayName(
+				static_cast<Pcsx2Config::SPU2Options::SPU2InterpMode>(i))));
+	}
+
 	for (u32 i = 0; i < static_cast<u32>(Pcsx2Config::SPU2Options::SPU2SyncMode::Count); i++)
 	{
 		m_ui.syncMode->addItem(
@@ -48,6 +55,9 @@ AudioSettingsWidget::AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent
 	SettingWidgetBinder::BindWidgetToEnumSetting(sif, m_ui.expansionMode, "SPU2/Output", "ExpansionMode",
 		&AudioStream::ParseExpansionMode, &AudioStream::GetExpansionModeName,
 		AudioStreamParameters::DEFAULT_EXPANSION_MODE);
+	SettingWidgetBinder::BindWidgetToEnumSetting(sif, m_ui.interpMode, "SPU2/Output", "InterpMode",
+		&Pcsx2Config::SPU2Options::ParseInterpMode, &Pcsx2Config::SPU2Options::GetInterpModeName,
+		Pcsx2Config::SPU2Options::DEFAULT_INTERPOLATION_MODE);
 	SettingWidgetBinder::BindWidgetToEnumSetting(sif, m_ui.syncMode, "SPU2/Output", "SyncMode",
 		&Pcsx2Config::SPU2Options::ParseSyncMode, &Pcsx2Config::SPU2Options::GetSyncModeName,
 		Pcsx2Config::SPU2Options::DEFAULT_SYNC_MODE);
@@ -115,6 +125,8 @@ AudioSettingsWidget::AudioSettingsWidget(SettingsWindow* dialog, QWidget* parent
 		   "includes games that support Dolby Pro Logic/Pro Logic II."));
 	dialog->registerWidgetHelp(m_ui.expansionSettings, tr("Expansion Settings"), tr("N/A"),
 		tr("These settings fine-tune the behavior of the FreeSurround-based channel expander."));
+	dialog->registerWidgetHelp(m_ui.interpMode, tr("Interpolation Mode"), tr("Gaussian (PS2-like / great sound)"),
+		tr("Determines the algorithm used for audio interpolation. Gaussian is PS2-like and generally recommended for best sound quality."));
 	dialog->registerWidgetHelp(m_ui.syncMode, tr("Synchronization"), tr("TimeStretch (Recommended)"),
 		tr("When running outside of 100% speed, adjusts the tempo on audio instead of dropping frames. Produces much nicer fast-forward/slowdown audio."));
 	dialog->registerWidgetHelp(m_ui.stretchSettings, tr("Stretch Settings"), tr("N/A"),
