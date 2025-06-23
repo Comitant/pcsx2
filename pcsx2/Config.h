@@ -883,6 +883,7 @@ struct Pcsx2Config
 		{
 			CatmullRom,
 			Gaussian,
+			Kaiser,
 			Count
 		};
 		enum class SPU2SyncMode : u8

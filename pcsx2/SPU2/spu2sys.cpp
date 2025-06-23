@@ -247,8 +247,7 @@ __forceinline static bool StartQueuedVoice(uint coreidx, uint voiceidx)
 	vc.Prev1 = 0;
 	vc.Prev2 = 0;
 
-	vc.PV1 = vc.PV2 = 0;
-	vc.PV3 = vc.PV4 = 0;
+	memset(vc.PV, 0, sizeof(vc.PV));
 	vc.NextCrest = -0x8000;
 
 	return true;

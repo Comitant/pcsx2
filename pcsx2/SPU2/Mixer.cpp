@@ -299,6 +299,23 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 	pxAssume(vc.ADSR.Value >= 0); // ADSR should never be negative...
 }
 
+__forceinline static s32 KaiserInterpolate(
+    const s32* samples,
+    s32 mu,
+    int startIdx)
+{
+    const int phase = (mu >> 4) & 0xFF;
+    const s16* coeff = kaiserTable[phase].data();
+
+    s32 acc = 0;
+    for (int i = 0; i < 16; ++i)
+    {
+        acc += samples[(startIdx + i) & 15] * coeff[i];
+    }
+
+    return (acc + 16384) >> 15;
+}
+
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
 	s32 out = 0;
@@ -342,22 +359,34 @@ static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 
 	while (vc.SP >= 0)
 	{
-		vc.PV4 = vc.PV3;
-		vc.PV3 = vc.PV2;
-		vc.PV2 = vc.PV1;
-		vc.PV1 = GetNextDataBuffered(thiscore, voiceidx);
+		if constexpr (InterpType == Pcsx2Config::SPU2Options::SPU2InterpMode::Kaiser)
+		{
+			vc.PV[vc.PVIndex] = GetNextDataBuffered(thiscore, voiceidx);
+			vc.PVIndex = (vc.PVIndex + 1) & 15;
+		}
+		else
+		{
+			vc.PV[0] = vc.PV[1];
+			vc.PV[1] = vc.PV[2];
+			vc.PV[2] = vc.PV[3];
+			vc.PV[3] = GetNextDataBuffered(thiscore, voiceidx);
+		}
 		vc.SP -= 0x1000;
 	}
 
 	const s32 mu = vc.SP + 0x1000;
 
-	if constexpr (InterpType == Pcsx2Config::SPU2Options::SPU2InterpMode::CatmullRom)
+	if constexpr (InterpType == Pcsx2Config::SPU2Options::SPU2InterpMode::Kaiser)
 	{
-		return CatmullRomInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, mu);
+		return KaiserInterpolate(vc.PV, mu, (vc.PVIndex + 1) & 15);
+	}
+	else if constexpr (InterpType == Pcsx2Config::SPU2Options::SPU2InterpMode::CatmullRom)
+	{
+		return CatmullRomInterpolate(vc.PV[0], vc.PV[1], vc.PV[2], vc.PV[3], mu);
 	}
 	else
 	{
-		return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0FF0) >> 4);
+		return GaussianInterpolate(vc.PV[0], vc.PV[1], vc.PV[2], vc.PV[3], (mu & 0x0FF0) >> 4);
 	}
 }
 
@@ -471,6 +500,9 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 					break;
 				case Pcsx2Config::SPU2Options::SPU2InterpMode::Gaussian:
 					Value = GetVoiceValues<Pcsx2Config::SPU2Options::SPU2InterpMode::Gaussian>(thiscore, voiceidx);
+					break;
+				case Pcsx2Config::SPU2Options::SPU2InterpMode::Kaiser:
+					Value = GetVoiceValues<Pcsx2Config::SPU2Options::SPU2InterpMode::Kaiser>(thiscore, voiceidx);
 					break;
 
 				jNO_DEFAULT;

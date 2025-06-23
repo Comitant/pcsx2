@@ -270,10 +270,8 @@ struct V_Voice
 	// Previous sample values - used for interpolation
 	// Inverted order of these members to match the access order in the
 	//   code (might improve cache hits).
-	s32 PV4;
-	s32 PV3;
-	s32 PV2;
-	s32 PV1;
+	int PVIndex = 0;
+	s32 PV[16];
 
 	// Last outputted audio value, used for voice modulation.
 	s32 OutX;

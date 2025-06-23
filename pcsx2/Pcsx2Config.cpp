@@ -1133,11 +1133,13 @@ bool Pcsx2Config::GSOptions::ShouldDump(int draw, int frame) const
 static constexpr const std::array i_spu2_interp_mode_names = {
 	"Catmull-Rom",
 	"Gaussian",
+	"Kaiser",
 };
 
 static constexpr const std::array i_spu2_interp_mode_display_names = {
 	TRANSLATE_NOOP("Pcsx2Config", "Catmull-Rom (Sharp)"),
 	TRANSLATE_NOOP("Pcsx2Config", "Gaussian (Smooth)"),
+	TRANSLATE_NOOP("Pcsx2Config", "Kaiser (Clean)"),
 };
 
 static constexpr const std::array s_spu2_sync_mode_names = {
