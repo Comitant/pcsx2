@@ -452,24 +452,90 @@ void ps_4x_rgss()
 #endif
 
 #ifdef ps_automagical_supersampling
-void ps_automagical_supersampling()
-{
-	vec2 ratio = (u_source_size / u_target_size) * 0.5;
-	vec2 steps = floor(ratio);
-	vec3 col = sample_c(PSin_t).rgb;
-	float div = 1;
-
-	for (float y = 0; y < steps.y; y++)
-	{
-		for (float x = 0; x < steps.x; x++)
-		{
-			vec2 offset = vec2(x,y) - ratio * 0.5;
-			col += sample_c(PSin_t + offset * u_rcp_source_resolution * 2.0).rgb;
-			div++;
-		}
-	}
-
-	SV_Target0 = vec4(col / div, 1);
+#define GSample0 sum += sample_c(base_uv).rgb;
+#define GSample(x, y) sum += sample_c(base_uv + step_uv * vec2(x, y)).rgb;
+void ps_automagical_supersampling() {
+    vec2 dx = dFdx(PSin_t);
+    vec2 dy = dFdy(PSin_t);
+    
+    vec2 scale = (abs(dx) + abs(dy)) * u_source_resolution;
+    float max_scale = max(scale.x, scale.y);
+    
+    if (max_scale < 1.0) {
+        SV_Target0 = sample_c(PSin_t);
+        return;
+    }
+    
+    vec2 pixel_center = PSin_t * u_source_resolution;
+    vec2 half_scale = scale * 0.5;
+    vec2 box_start = pixel_center - half_scale;
+    vec2 box_end = pixel_center + half_scale;
+    
+    if (max_scale >= 3.0) {
+        int grid_size = max_scale >= 6.0 ? 5 : (max_scale >= 4.0 ? 4 : 3);
+        float rcp_samples = max_scale >= 6.0 ? 0.04 : (max_scale >= 4.0 ? 0.0625 : 0.111111);
+        
+        vec2 step = (box_end - box_start) / float(grid_size);
+        vec2 base_uv = (box_start + step * 0.5) * u_rcp_source_resolution;
+        vec2 step_uv = step * u_rcp_source_resolution;
+        
+        vec3 sum = vec3(0.0);
+        
+        if (grid_size == 3) {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0)
+        } else if (grid_size == 4) {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0) GSample(3.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0) GSample(3.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0) GSample(3.0, 2.0)
+            GSample(0.0, 3.0) GSample(1.0, 3.0) GSample(2.0, 3.0) GSample(3.0, 3.0)
+        } else {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0) GSample(3.0, 0.0) GSample(4.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0) GSample(3.0, 1.0) GSample(4.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0) GSample(3.0, 2.0) GSample(4.0, 2.0)
+            GSample(0.0, 3.0) GSample(1.0, 3.0) GSample(2.0, 3.0) GSample(3.0, 3.0) GSample(4.0, 3.0)
+            GSample(0.0, 4.0) GSample(1.0, 4.0) GSample(2.0, 4.0) GSample(3.0, 4.0) GSample(4.0, 4.0)
+        }
+        
+        SV_Target0 = vec4(sum * rcp_samples, 1.0);
+        return;
+    }
+    
+    // Analytical path for sub-3x scale
+    box_start = clamp(box_start, vec2(0.0), u_source_resolution);
+    box_end = clamp(box_end, vec2(0.0), u_source_resolution);
+    
+    ivec2 pix_start = ivec2(floor(box_start));
+    ivec2 pix_end = ivec2(ceil(box_end));
+    
+    float EPS = 1.0 / max(u_source_resolution.x, u_source_resolution.y);
+    vec3 sum = vec3(0.0);
+    float total_weight = 0.0;
+    
+    for (int y = pix_start.y; y < pix_end.y; ++y) {
+        float sample_start_y = max(box_start.y, float(y));
+        float sample_end_y = min(box_end.y, float(y + 1));
+        float height = sample_end_y - sample_start_y;
+        if (height <= EPS) continue;
+        
+        for (int x = pix_start.x; x < pix_end.x; ++x) {
+            float sample_start_x = max(box_start.x, float(x));
+            float sample_end_x = min(box_end.x, float(x + 1));
+            float width = sample_end_x - sample_start_x;
+            if (width <= EPS) continue;
+            
+            float area = width * height;
+            vec2 texel_center = vec2(float(x), float(y)) + 0.5;
+            vec2 uv = texel_center * u_rcp_source_resolution;
+            
+            vec3 color = textureGrad(TextureSampler, uv, vec2(0.0), vec2(0.0)).rgb;
+            sum += color * area;
+            total_weight += area;
+        }
+    }
+    
+    SV_Target0 = vec4(sum / max(total_weight, EPS), 1.0);
 }
 #endif
 

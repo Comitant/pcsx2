@@ -377,23 +377,90 @@ fragment float4 ps_4x_rgss(ConvertShaderData data [[stage_in]], ConvertPSRes res
 	return float4(color * 0.25,1);
 }
 
+#define GSample0 sum += res.sample(base_uv).rgb;
+#define GSample(x, y) sum += res.sample(base_uv + step_uv * float2(x, y)).rgb;
 fragment float4 ps_automagical_supersampling(ConvertShaderData data [[stage_in]], ConvertPSRes res,
-	constant GSMTLPresentPSUniform& cb [[buffer(GSMTLBufferIndexUniforms)]])
+    constant GSMTLPresentPSUniform& cb [[buffer(GSMTLBufferIndexUniforms)]])
 {
-	float2 ratio = (cb.source_size / cb.target_size) * 0.5;
-	float2 steps = floor(ratio);
-	float3 col = res.sample(data.t).rgb;
-	float div = 1;
-
-	for (float y = 0; y < steps.y; y++)
-	{
-		for (float x = 0; x < steps.x; x++)
-		{
-			float2 offset = float2(x,y) - ratio * 0.5;
-			col += res.sample(data.t + offset * cb.rcp_source_resolution * 2.0).rgb;
-			div++;
-		}
-	}
-
-	return float4(col / div, 1);
+    constexpr sampler zeroSample(mip_filter::linear, mag_filter::linear, min_filter::linear);
+    
+    float2 dx = dfdx(data.t);
+    float2 dy = dfdy(data.t);
+    
+    float2 scale = (abs(dx) + abs(dy)) * cb.source_size;
+    float max_scale = max(scale.x, scale.y);
+    
+    if (max_scale < 1.0) {
+        return float4(res.sample(data.t).rgb, 1.0);
+    }
+    
+    float2 pixel_center = data.t * cb.source_size;
+    float2 half_scale = scale * 0.5;
+    float2 box_start = pixel_center - half_scale;
+    float2 box_end = pixel_center + half_scale;
+    
+    if (max_scale >= 3.0) {
+        int grid_size = max_scale >= 6.0 ? 5 : (max_scale >= 4.0 ? 4 : 3);
+        float rcp_samples = max_scale >= 6.0 ? 0.04 : (max_scale >= 4.0 ? 0.0625 : 0.111111);
+        
+        float2 step = (box_end - box_start) / float(grid_size);
+        float2 base_uv = (box_start + step * 0.5) * cb.rcp_source_resolution;
+        float2 step_uv = step * cb.rcp_source_resolution;
+        
+        float3 sum = float3(0.0);
+        
+        if (grid_size == 3) {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0)
+        } else if (grid_size == 4) {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0) GSample(3.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0) GSample(3.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0) GSample(3.0, 2.0)
+            GSample(0.0, 3.0) GSample(1.0, 3.0) GSample(2.0, 3.0) GSample(3.0, 3.0)
+        } else {
+            GSample0 GSample(1.0, 0.0) GSample(2.0, 0.0) GSample(3.0, 0.0) GSample(4.0, 0.0)
+            GSample(0.0, 1.0) GSample(1.0, 1.0) GSample(2.0, 1.0) GSample(3.0, 1.0) GSample(4.0, 1.0)
+            GSample(0.0, 2.0) GSample(1.0, 2.0) GSample(2.0, 2.0) GSample(3.0, 2.0) GSample(4.0, 2.0)
+            GSample(0.0, 3.0) GSample(1.0, 3.0) GSample(2.0, 3.0) GSample(3.0, 3.0) GSample(4.0, 3.0)
+            GSample(0.0, 4.0) GSample(1.0, 4.0) GSample(2.0, 4.0) GSample(3.0, 4.0) GSample(4.0, 4.0)
+        }
+        
+        return float4(sum * rcp_samples, 1.0);
+    }
+    
+    // Analytical path for sub-3x scale
+    box_start = clamp(box_start, float2(0.0), cb.source_size);
+    box_end = clamp(box_end, float2(0.0), cb.source_size);
+    
+    int2 pix_start = int2(floor(box_start));
+    int2 pix_end = int2(ceil(box_end));
+    
+    float EPS = 1.0 / max(cb.source_size.x, cb.source_size.y);
+    float3 sum = float3(0.0);
+    float total_weight = 0.0;
+    
+    for (int y = pix_start.y; y < pix_end.y; ++y) {
+        float sample_start_y = max(box_start.y, float(y));
+        float sample_end_y = min(box_end.y, float(y + 1));
+        float height = sample_end_y - sample_start_y;
+        if (height <= EPS) continue;
+        
+        for (int x = pix_start.x; x < pix_end.x; ++x) {
+            float sample_start_x = max(box_start.x, float(x));
+            float sample_end_x = min(box_end.x, float(x + 1));
+            float width = sample_end_x - sample_start_x;
+            if (width <= EPS) continue;
+            
+            float area = width * height;
+            float2 texel_center = float2(float(x), float(y)) + 0.5;
+            float2 uv = texel_center * cb.rcp_source_resolution;
+            
+            float3 color = res.texture.sample(zeroSample, uv, 0.0).rgb;
+            sum += color * area;
+            total_weight += area;
+        }
+    }
+    
+    return float4(sum / max(total_weight, EPS), 1.0);
 }
